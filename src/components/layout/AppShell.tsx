@@ -40,13 +40,17 @@ interface AppShellProps {
   onSave: () => void;
   saveStatus: "idle" | "saving" | "success" | "error";
   onUpdateAiChat: (history: string) => void;
+  // Share props
+  onShare: () => void;
+  shareStatus: "idle" | "copied";
 }
 
 export function AppShell({
   blobs, activeBlob, activeBlobId, view,
   onSelectBlob, onChangeView, onUpdateContent, onUpdateName, onNewBlob,
   connectedTables, activeTable, onSelectTable, onConnectDb, isDbLoading,
-  onSave, saveStatus, onUpdateAiChat
+  onSave, saveStatus, onUpdateAiChat,
+  onShare, shareStatus
 }: AppShellProps) {
   const parsed = parseJSON(activeBlob.content);
 
@@ -129,6 +133,8 @@ export function AppShell({
           onSave={onSave}
           saveStatus={saveStatus}
           isReadOnly={activeTable !== null}
+          onShare={onShare}
+          shareStatus={shareStatus}
         />
         <div className="content-area" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
           {/* Render Diff view when showDiff is true */}

@@ -15,8 +15,35 @@ export default function Home() {
   const [tableContent, setTableContent] = useState<string>("[]");
   const [isDbLoading, setIsDbLoading] = useState(false);
 
-  // Manual save state
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error" >("idle");
+  // Manual save and share state
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
+
+  // Load shared blob on mount if ?shared=[id] query param is present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedId = params.get("shared");
+    if (sharedId) {
+      (async () => {
+        try {
+          const res = await fetch(`/api/jsonBlob/${sharedId}`);
+          if (res.ok) {
+            const data = await res.json() as Blob;
+            setBlobs((prev) => {
+              if (prev.some((b) => b.id === data.id)) {
+                return prev.map((b) => (b.id === data.id ? data : b));
+              }
+              return [data, ...prev];
+            });
+            setActiveBlobId(data.id);
+            setActiveTable(null);
+          }
+        } catch (e) {
+          console.error("Failed to load shared blob:", e);
+        }
+      })();
+    }
+  }, []);
 
   // Attempt to fetch real D1 blobs and tables on load
   const loadDatabaseData = useCallback(async () => {
@@ -42,8 +69,19 @@ export default function Home() {
         const updatedList = blobsData.blobs.map((b: any) =>
           b.id === first.id ? detailData : { ...b, content: "{}" }
         ) as Blob[];
-        setBlobs(updatedList);
-        setActiveBlobId(first.id);
+        
+        // Merge with shared blob if loaded
+        setBlobs((prev) => {
+          const sharedBlob = prev.find((b) => !updatedList.some((u) => u.id === b.id));
+          return sharedBlob ? [sharedBlob, ...updatedList] : updatedList;
+        });
+        
+        // Keep shared blob selected if it was set on mount
+        const params = new URLSearchParams(window.location.search);
+        const sharedId = params.get("shared");
+        if (!sharedId) {
+          setActiveBlobId(first.id);
+        }
         setActiveTable(null);
       }
     } catch {
@@ -68,16 +106,9 @@ export default function Home() {
         created_at: Date.now(),
         updated_at: Date.now(),
         expires_at: null,
-        ai_chat_history: "[]",
       };
     }
-    const match = blobs.find((b) => b.id === activeBlobId) ?? blobs[0] ?? SAMPLE_BLOBS[0];
-    return {
-      ...match,
-      name: match.name ?? "Untitled",
-      content: match.content ?? "{}",
-      ai_chat_history: match.ai_chat_history ?? "[]",
-    };
+    return blobs.find((b) => b.id === activeBlobId) ?? blobs[0] ?? SAMPLE_BLOBS[0];
   }, [activeBlobId, activeTable, blobs, tableContent]);
 
   // Select a D1 database table
@@ -106,12 +137,8 @@ export default function Home() {
     if (match && (!match.content || match.content === "{}")) {
       try {
         const res = await fetch(`/api/jsonBlob/${id}`);
-        if (res.ok) {
-          const data = await res.json() as Blob;
-          if (data && typeof data.content === "string") {
-            setBlobs((prev) => prev.map((b) => (b.id === id ? data : b)));
-          }
-        }
+        const data = await res.json() as Blob;
+        setBlobs((prev) => prev.map((b) => (b.id === id ? data : b)));
       } catch {
         // Fallback
       }
@@ -218,6 +245,16 @@ export default function Home() {
     }
   }, [activeBlobId, blobs, activeTable]);
 
+  // Copy shareable link to clipboard
+  const handleShare = useCallback(() => {
+    if (activeTable) return;
+    const shareUrl = `${window.location.origin}/?shared=${activeBlobId}`;
+    navigator.clipboard.writeText(shareUrl);
+    setSaveStatus("idle");
+    setShareStatus("copied");
+    setTimeout(() => setShareStatus("idle"), 2500);
+  }, [activeBlobId, activeTable]);
+
   return (
     <AppShell
       blobs={blobs}
@@ -239,6 +276,9 @@ export default function Home() {
       onSave={handleSave}
       saveStatus={saveStatus}
       onUpdateAiChat={updateAiChat}
+      // Share props
+      onShare={handleShare}
+      shareStatus={shareStatus}
     />
   );
 }
