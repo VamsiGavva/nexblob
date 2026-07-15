@@ -37,7 +37,7 @@ export async function GET(req: Request, { params }: RouteContext) {
     });
   } catch (err) {
     console.error("[GET /api/tables/:table]", err);
-    return Response.json({ error: "Failed to query table" }, { status: 500 });
+    return Response.json({ error: "Failed to query table: " + (err as Error).message }, { status: 500 });
   }
 }
 

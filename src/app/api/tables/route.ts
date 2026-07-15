@@ -15,6 +15,6 @@ export async function GET() {
     return Response.json({ tables: result.results.map((r) => r.name) });
   } catch (err) {
     console.error("[GET /api/tables]", err);
-    return Response.json({ error: "Failed to list tables" }, { status: 500 });
+    return Response.json({ error: "Failed to list tables: " + (err as Error).message }, { status: 500 });
   }
 }

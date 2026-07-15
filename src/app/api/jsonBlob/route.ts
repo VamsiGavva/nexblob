@@ -90,6 +90,6 @@ export async function GET(req: Request) {
     return Response.json({ blobs: result.results });
   } catch (err) {
     console.error("[GET /api/jsonBlob]", err);
-    return Response.json({ error: "Failed to list blobs" }, { status: 500 });
+    return Response.json({ error: "Failed to list blobs: " + (err as Error).message }, { status: 500 });
   }
 }

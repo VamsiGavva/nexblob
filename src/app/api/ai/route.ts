@@ -1,3 +1,5 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 export const runtime = "edge";
 
 const PROMPTS: Record<string, string> = {
@@ -47,15 +49,23 @@ export async function POST(req: Request) {
       return Response.json({ error: "Unknown action" }, { status: 400 });
     }
 
-    // Get Gemini key from env (falls back to ANTHROPIC_API_KEY in case user reused it)
-    const apiKey = (globalThis as unknown as { env?: { GEMINI_API_KEY?: string; ANTHROPIC_API_KEY?: string } }).env?.GEMINI_API_KEY
-      ?? (globalThis as unknown as { env?: { GEMINI_API_KEY?: string; ANTHROPIC_API_KEY?: string } }).env?.ANTHROPIC_API_KEY
+    // Get Gemini key from Cloudflare context env
+    let cfEnv: any = {};
+    try {
+      const cf = await getCloudflareContext({ async: true });
+      cfEnv = cf.env;
+    } catch (e) {
+      console.warn("Could not get Cloudflare context:", e);
+    }
+
+    const apiKey = cfEnv.GEMINI_API_KEY
+      ?? cfEnv.ANTHROPIC_API_KEY
       ?? process.env.GEMINI_API_KEY
       ?? process.env.ANTHROPIC_API_KEY;
 
     if (!apiKey) {
       return Response.json({
-        result: `[AI not configured] Add GEMINI_API_KEY to your .env.local file to enable AI features.\n\nAction: ${action}\nContent preview: ${body.content.slice(0, 200)}…`,
+        result: `[AI not configured] Add GEMINI_API_KEY to your environment to enable AI features.\n\nAction: ${action}\nContent preview: ${body.content.slice(0, 200)}…`,
       });
     }
 
@@ -171,6 +181,6 @@ export async function POST(req: Request) {
     return Response.json({ result: text });
   } catch (err) {
     console.error("[POST /api/ai]", err);
-    return Response.json({ error: "AI request failed" }, { status: 500 });
+    return Response.json({ error: "AI request failed: " + (err as Error).message }, { status: 500 });
   }
 }
