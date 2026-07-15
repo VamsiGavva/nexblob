@@ -1,52 +1,233 @@
-import Image from "next/image";
+"use client";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { AppShell } from "@/components/layout/AppShell";
+import { SAMPLE_BLOBS } from "@/lib/sample-data";
+import type { ViewMode, Blob } from "@/lib/types";
 
 export default function Home() {
-	return (
-		<div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-			<main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-				<Image className="dark:invert" src="/next.svg" alt="Next.js logo" width={180} height={38} priority />
-				<ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-					<li className="mb-2 tracking-[-.01em]">
-						Get started by editing{" "}
-						<code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-							src/app/page.tsx
-						</code>
-						.
-					</li>
-					<li className="tracking-[-.01em]">Save and see your changes instantly.</li>
-				</ol>
+  const [activeBlobId, setActiveBlobId] = useState<string>(SAMPLE_BLOBS[0].id);
+  const [blobs, setBlobs] = useState<Blob[]>(SAMPLE_BLOBS);
+  const [view, setView] = useState<ViewMode>("editor");
 
-				<div className="flex gap-4 items-center flex-col sm:flex-row">
-					<a
-						className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-						href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						Read our docs
-					</a>
-				</div>
-			</main>
-			<footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-				<a
-					className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-					href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<Image aria-hidden src="/file.svg" alt="File icon" width={16} height={16} />
-					Learn
-				</a>
-				<a
-					className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-					href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<Image aria-hidden src="/globe.svg" alt="Globe icon" width={16} height={16} />
-					Go to nextjs.org →
-				</a>
-			</footer>
-		</div>
-	);
+  // D1 Database integration states
+  const [connectedTables, setConnectedTables] = useState<string[]>([]);
+  const [activeTable, setActiveTable] = useState<string | null>(null);
+  const [tableContent, setTableContent] = useState<string>("[]");
+  const [isDbLoading, setIsDbLoading] = useState(false);
+
+  // Manual save state
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error" >("idle");
+
+  // Attempt to fetch real D1 blobs and tables on load
+  const loadDatabaseData = useCallback(async () => {
+    setIsDbLoading(true);
+    try {
+      // 1. Fetch tables list
+      const tablesRes = await fetch("/api/tables");
+      const tablesData = await tablesRes.json() as any;
+      if (tablesData.tables) {
+        setConnectedTables(tablesData.tables);
+      }
+
+      // 2. Fetch actual blobs list
+      const blobsRes = await fetch("/api/jsonBlob");
+      const blobsData = await blobsRes.json() as any;
+      if (blobsData.blobs && blobsData.blobs.length > 0) {
+        // Fetch content of the first blob to select it
+        const first = blobsData.blobs[0];
+        const detailRes = await fetch(`/api/jsonBlob/${first.id}`);
+        const detailData = await detailRes.json() as any;
+
+        // Construct initial list
+        const updatedList = blobsData.blobs.map((b: any) =>
+          b.id === first.id ? detailData : { ...b, content: "{}" }
+        ) as Blob[];
+        setBlobs(updatedList);
+        setActiveBlobId(first.id);
+        setActiveTable(null);
+      }
+    } catch {
+      // Keep sample data if local Next dev server is used
+    } finally {
+      setIsDbLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDatabaseData();
+  }, [loadDatabaseData]);
+
+  // Virtual active blob derived from selection (real blob or database table)
+  const activeBlob = useMemo(() => {
+    if (activeTable) {
+      return {
+        id: activeTable,
+        workspace_id: null,
+        name: activeTable,
+        content: tableContent,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        expires_at: null,
+      };
+    }
+    return blobs.find((b) => b.id === activeBlobId) ?? blobs[0] ?? SAMPLE_BLOBS[0];
+  }, [activeBlobId, activeTable, blobs, tableContent]);
+
+  // Select a D1 database table
+  const handleSelectTable = useCallback(async (tableName: string) => {
+    setActiveTable(tableName);
+    try {
+      const res = await fetch(`/api/tables/${tableName}?limit=100`);
+      const data = await res.json() as any;
+      if (data.rows) {
+        setTableContent(JSON.stringify(data.rows, null, 2));
+      } else {
+        setTableContent(JSON.stringify(data, null, 2));
+      }
+    } catch (e) {
+      setTableContent(JSON.stringify({ error: "Failed to query table: " + (e as Error).message }, null, 2));
+    }
+  }, []);
+
+  // Select a JSON blob
+  const handleSelectBlob = useCallback(async (id: string) => {
+    setActiveTable(null);
+    setActiveBlobId(id);
+
+    const match = blobs.find((b) => b.id === id);
+    // If the blob's content was not fetched yet, retrieve it
+    if (match && (!match.content || match.content === "{}")) {
+      try {
+        const res = await fetch(`/api/jsonBlob/${id}`);
+        const data = await res.json() as Blob;
+        setBlobs((prev) => prev.map((b) => (b.id === id ? data : b)));
+      } catch {
+        // Fallback
+      }
+    }
+  }, [blobs]);
+
+  // Update content only in local state (saving is now manual)
+  const updateContent = useCallback(
+    (content: string) => {
+      if (activeTable) {
+        // Table content is read-only representation of database rows
+        setTableContent(content);
+        return;
+      }
+
+      setBlobs((prev) =>
+        prev.map((b) =>
+          b.id === activeBlobId
+            ? { ...b, content, updated_at: Date.now() }
+            : b
+        )
+      );
+    },
+    [activeBlobId, activeTable]
+  );
+
+  const createNewBlob = useCallback(async () => {
+    const id = crypto.randomUUID().replace(/-/g, "").slice(0, 21);
+    const newBlob = {
+      id,
+      workspace_id: null,
+      name: "Untitled",
+      content: "{}",
+      created_at: Date.now(),
+      updated_at: Date.now(),
+      expires_at: null,
+      ai_chat_history: "[]"
+    };
+    setBlobs((prev) => [newBlob, ...prev]);
+    setActiveBlobId(id);
+    setActiveTable(null);
+    setView("editor");
+    try {
+      await fetch("/api/jsonBlob", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "{}", name: "Untitled" }),
+      });
+    } catch {/* offline fallback */}
+  }, []);
+
+  const updateName = useCallback(
+    (name: string) => {
+      if (activeTable) return;
+      setBlobs((prev) =>
+        prev.map((b) => (b.id === activeBlobId ? { ...b, name } : b))
+      );
+    },
+    [activeBlobId, activeTable]
+  );
+
+  // Sync AI Chat history to local blob state
+  const updateAiChat = useCallback(
+    (history: string) => {
+      if (activeTable) return;
+      setBlobs((prev) =>
+        prev.map((b) => (b.id === activeBlobId ? { ...b, ai_chat_history: history } : b))
+      );
+    },
+    [activeBlobId, activeTable]
+  );
+
+  // Manual save logic: persists content, name, and AI chat history
+  const handleSave = useCallback(async () => {
+    if (activeTable) return;
+    setSaveStatus("saving");
+    try {
+      const active = blobs.find((b) => b.id === activeBlobId);
+      if (!active) {
+        setSaveStatus("error");
+        return;
+      }
+
+      const res = await fetch(`/api/jsonBlob/${activeBlobId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: active.content,
+          name: active.name,
+          ai_chat_history: active.ai_chat_history ?? "[]"
+        }),
+      });
+
+      if (res.ok) {
+        setSaveStatus("success");
+        setTimeout(() => setSaveStatus("idle"), 2500);
+      } else {
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus("idle"), 2500);
+      }
+    } catch {
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    }
+  }, [activeBlobId, blobs, activeTable]);
+
+  return (
+    <AppShell
+      blobs={blobs}
+      activeBlob={activeBlob}
+      activeBlobId={activeBlobId}
+      view={view}
+      onSelectBlob={handleSelectBlob}
+      onChangeView={setView}
+      onUpdateContent={updateContent}
+      onUpdateName={updateName}
+      onNewBlob={createNewBlob}
+      // D1 props
+      connectedTables={connectedTables}
+      activeTable={activeTable}
+      onSelectTable={handleSelectTable}
+      onConnectDb={loadDatabaseData}
+      isDbLoading={isDbLoading}
+      // Save props
+      onSave={handleSave}
+      saveStatus={saveStatus}
+      onUpdateAiChat={updateAiChat}
+    />
+  );
 }
