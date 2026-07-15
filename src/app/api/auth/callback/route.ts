@@ -6,7 +6,7 @@ import {
   SESSION_TTL_MS,
 } from "@/lib/auth";
 
-export const runtime = "edge";
+
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
     const code = url.searchParams.get("code");
 
     if (!code) {
-      return Response.redirect(`${origin}/?auth_error=no_code`, 302);
+      return new Response(null, { status: 302, headers: { Location: `${origin}/?auth_error=no_code` } });
     }
 
     const clientId = cfEnv.GOOGLE_CLIENT_ID;
@@ -62,7 +62,7 @@ export async function GET(req: Request) {
 
     const tokenData = await tokenRes.json() as GoogleTokenResponse;
     if (tokenData.error || !tokenData.access_token) {
-      return Response.redirect(`${origin}/?auth_error=token_exchange`, 302);
+      return new Response(null, { status: 302, headers: { Location: `${origin}/?auth_error=token_exchange` } });
     }
 
     // 2. Fetch the user's Google profile
@@ -115,8 +115,11 @@ export async function GET(req: Request) {
         "Set-Cookie": makeSessionCookie(token, maxAge),
       },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("[GET /api/auth/callback]", err);
-    return Response.json({ error: "Auth callback failed: " + (err as Error).message }, { status: 500 });
+    return Response.json(
+      { error: "Auth callback failed: " + (err?.message ?? String(err)), stack: err?.stack },
+      { status: 500 }
+    );
   }
 }

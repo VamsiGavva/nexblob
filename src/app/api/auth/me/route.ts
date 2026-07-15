@@ -5,7 +5,7 @@ import {
   makeSessionCookie,
 } from "@/lib/auth";
 
-export const runtime = "edge";
+
 
 /** GET /api/auth/me — returns current user or 401 */
 export async function GET(req: Request) {
@@ -15,9 +15,12 @@ export async function GET(req: Request) {
     if (!token) return Response.json({ user: null }, { status: 200 });
 
     const user = await getSessionUser((env as any).DB, token);
-    return Response.json({ user });
-  } catch (err) {
-    return Response.json({ user: null, error: (err as Error).message });
+    return Response.json({ user }, { status: 200 });
+  } catch (err: any) {
+    return Response.json(
+      { user: null, error: err.message, stack: err.stack },
+      { status: 500 }
+    );
   }
 }
 
@@ -36,11 +39,13 @@ export async function POST(req: Request) {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        // Expire the cookie immediately
         "Set-Cookie": makeSessionCookie("", 0),
       },
     });
-  } catch (err) {
-    return Response.json({ error: (err as Error).message }, { status: 500 });
+  } catch (err: any) {
+    return Response.json(
+      { error: err.message, stack: err.stack },
+      { status: 500 }
+    );
   }
 }

@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-export const runtime = "edge";
+
 
 // GET /api/tables — list all user tables in D1 database
 export async function GET() {

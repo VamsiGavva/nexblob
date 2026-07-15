@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-export const runtime = "edge";
+
 
 const PROMPTS: Record<string, string> = {
   explain: `You are a JSON expert. Analyze the provided JSON and give a clear, concise explanation of:

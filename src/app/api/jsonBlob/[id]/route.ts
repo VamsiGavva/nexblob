@@ -3,7 +3,7 @@ import { generateId } from "@/lib/json-utils";
 import { getSessionToken, getSessionUser } from "@/lib/auth";
 import type { Blob, Version } from "@/lib/types";
 
-export const runtime = "edge";
+
 
 interface RouteContext {
   params: Promise<{ id: string }>;

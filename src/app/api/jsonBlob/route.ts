@@ -3,7 +3,7 @@ import { generateId, expiryToTimestamp } from "@/lib/json-utils";
 import { getSessionToken, getSessionUser } from "@/lib/auth";
 import type { Blob } from "@/lib/types";
 
-export const runtime = "edge";
+
 
 // POST /api/jsonBlob — create new blob
 export async function POST(req: Request) {
