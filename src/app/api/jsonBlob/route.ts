@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error("[POST /api/jsonBlob]", err);
-    return Response.json({ error: "Failed to create blob" }, { status: 500 });
+    return Response.json({ error: "Failed to create blob: " + (err as Error).message }, { status: 500 });
   }
 }
 

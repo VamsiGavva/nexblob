@@ -117,7 +117,7 @@ export async function PUT(req: Request, { params }: RouteContext) {
     return Response.json(updated);
   } catch (err) {
     console.error("[PUT /api/jsonBlob/:id]", err);
-    return Response.json({ error: "Failed to update blob" }, { status: 500 });
+    return Response.json({ error: "Failed to update blob: " + (err as Error).message }, { status: 500 });
   }
 }
 
