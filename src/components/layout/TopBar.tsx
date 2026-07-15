@@ -12,6 +12,13 @@ const VIEWS: { id: ViewMode; label: string }[] = [
   { id: "ai_page", label: "AI Specialist" },
 ];
 
+export interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  avatar_url: string | null;
+}
+
 interface TopBarProps {
   blobName: string;
   view: ViewMode;
@@ -25,12 +32,16 @@ interface TopBarProps {
   // Share props
   onShare?: () => void;
   shareStatus?: "idle" | "copied";
+  // User/Auth props
+  user?: User | null;
+  onLogout?: () => void;
 }
 
 export function TopBar({
   blobName, view, isValid, onChangeView, onUpdateName,
   onSave, saveStatus = "idle", isReadOnly = false,
-  onShare, shareStatus = "idle"
+  onShare, shareStatus = "idle",
+  user, onLogout
 }: TopBarProps) {
   const [editing, setEditing] = useState(false);
   const [nameValue, setNameValue] = useState(blobName);
@@ -110,60 +121,126 @@ export function TopBar({
           ))}
         </nav>
 
-        {/* Share & Save buttons and status indicators */}
+        {/* Auth-conditional topbar options */}
         {!isReadOnly && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {onShare && (
-              <button
-                id="share-blob-btn"
-                className="btn btn-ghost"
-                onClick={onShare}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {user === null ? (
+              /* Signed Out -> Render Sign In with Google Button */
+              <a
+                id="google-login-btn"
+                href="/api/auth/google"
+                className="btn btn-primary"
                 style={{
                   fontSize: 12,
-                  padding: "6px 12px",
+                  padding: "6px 14px",
                   fontWeight: 600,
                   display: "flex",
                   alignItems: "center",
-                  gap: 6
+                  gap: 8,
+                  textDecoration: "none",
+                  color: "#fff",
+                  background: "linear-gradient(135deg, #4285F4 0%, #357ae8 100%)",
+                  border: "none",
+                  boxShadow: "0 2px 8px rgba(66, 133, 244, 0.25)"
                 }}
               >
-                <span>🔗</span>
-                {shareStatus === "copied" ? "Copied!" : "Share"}
-              </button>
-            )}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                Sign In
+              </a>
+            ) : user === undefined ? (
+              /* Loading State -> Loading placeholder */
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Loading…</span>
+            ) : (
+              /* Signed In -> Render Share, Save, and Profile */
+              <>
+                {onShare && (
+                  <button
+                    id="share-blob-btn"
+                    className="btn btn-ghost"
+                    onClick={onShare}
+                    style={{
+                      fontSize: 12,
+                      padding: "6px 12px",
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6
+                    }}
+                  >
+                    <span>🔗</span>
+                    {shareStatus === "copied" ? "Copied!" : "Share"}
+                  </button>
+                )}
 
-            {onSave && (
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {saveStatus === "saving" && (
-                  <span style={{ fontSize: 12, color: "var(--text-muted)", transition: "all 0.2s" }}>
-                    Saving…
-                  </span>
+                {onSave && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    {saveStatus === "saving" && (
+                      <span style={{ fontSize: 12, color: "var(--text-muted)", transition: "all 0.2s" }}>
+                        Saving…
+                      </span>
+                    )}
+                    {saveStatus === "success" && (
+                      <span style={{ fontSize: 12, color: "var(--success)", fontWeight: 500, transition: "all 0.2s" }}>
+                        Saved! ✓
+                      </span>
+                    )}
+                    {saveStatus === "error" && (
+                      <span style={{ fontSize: 12, color: "var(--warning)", fontWeight: 500, transition: "all 0.2s" }}>
+                        Error! ⚠
+                      </span>
+                    )}
+                    <button
+                      id="save-blob-btn"
+                      className="btn btn-primary"
+                      onClick={onSave}
+                      disabled={saveStatus === "saving"}
+                      style={{
+                        fontSize: 12,
+                        padding: "6px 14px",
+                        fontWeight: 600,
+                        boxShadow: "0 2px 8px rgba(108, 92, 231, 0.25)"
+                      }}
+                    >
+                      Save
+                    </button>
+                  </div>
                 )}
-                {saveStatus === "success" && (
-                  <span style={{ fontSize: 12, color: "var(--success)", fontWeight: 500, transition: "all 0.2s" }}>
-                    Saved! ✓
-                  </span>
-                )}
-                {saveStatus === "error" && (
-                  <span style={{ fontSize: 12, color: "var(--warning)", fontWeight: 500, transition: "all 0.2s" }}>
-                    Error! ⚠
-                  </span>
-                )}
-                <button
-                  id="save-blob-btn"
-                  className="btn btn-primary"
-                  onClick={onSave}
-                  disabled={saveStatus === "saving"}
-                  style={{
-                    fontSize: 12,
-                    padding: "6px 14px",
-                    fontWeight: 600,
-                    boxShadow: "0 2px 8px rgba(108, 92, 231, 0.25)"
-                  }}
-                >
-                  Save
-                </button>
-              </div>
+
+                <div style={{ height: 20, width: 1, backgroundColor: "var(--border)" }} />
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {user.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt={user.name ?? "User Profile"}
+                      style={{ width: 24, height: 24, borderRadius: "50%", border: "1px solid var(--border)" }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 24, height: 24, borderRadius: "50%",
+                      backgroundColor: "var(--accent)", color: "#fff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 11, fontWeight: "bold"
+                    }}>
+                      {(user.name || user.email || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+                  {onLogout && (
+                    <button
+                      className="btn btn-ghost"
+                      onClick={onLogout}
+                      style={{ fontSize: 11, padding: "4px 8px", color: "var(--text-muted)" }}
+                    >
+                      Sign Out
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
         )}

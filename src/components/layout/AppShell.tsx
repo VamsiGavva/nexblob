@@ -13,6 +13,7 @@ import { AiPageView } from "@/components/views/AiPageView";
 import dynamic from "next/dynamic";
 import { parseJSON, formatJSON } from "@/lib/json-utils";
 import type { Blob, ViewMode } from "@/lib/types";
+import type { User } from "@/hooks/useUser";
 
 // SqlView must be no-SSR because alasql only works in the browser
 const SqlView = dynamic(
@@ -43,6 +44,9 @@ interface AppShellProps {
   // Share props
   onShare: () => void;
   shareStatus: "idle" | "copied";
+  // User/Auth props
+  user: User | null | undefined;
+  onLogout: () => void;
 }
 
 export function AppShell({
@@ -50,7 +54,8 @@ export function AppShell({
   onSelectBlob, onChangeView, onUpdateContent, onUpdateName, onNewBlob,
   connectedTables, activeTable, onSelectTable, onConnectDb, isDbLoading,
   onSave, saveStatus, onUpdateAiChat,
-  onShare, shareStatus
+  onShare, shareStatus,
+  user, onLogout
 }: AppShellProps) {
   const parsed = parseJSON(activeBlob.content);
 
@@ -135,6 +140,8 @@ export function AppShell({
           isReadOnly={activeTable !== null}
           onShare={onShare}
           shareStatus={shareStatus}
+          user={user}
+          onLogout={onLogout}
         />
         <div className="content-area" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
           {/* Render Diff view when showDiff is true */}

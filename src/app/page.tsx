@@ -2,9 +2,12 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { SAMPLE_BLOBS } from "@/lib/sample-data";
+import { useUser } from "@/hooks/useUser";
 import type { ViewMode, Blob } from "@/lib/types";
 
 export default function Home() {
+  const { user, logout } = useUser();
+  
   const [activeBlobId, setActiveBlobId] = useState<string>(SAMPLE_BLOBS[0].id);
   const [blobs, setBlobs] = useState<Blob[]>(SAMPLE_BLOBS);
   const [view, setView] = useState<ViewMode>("editor");
@@ -279,6 +282,9 @@ export default function Home() {
       // Share props
       onShare={handleShare}
       shareStatus={shareStatus}
+      // User/Auth props
+      user={user}
+      onLogout={logout}
     />
   );
 }
