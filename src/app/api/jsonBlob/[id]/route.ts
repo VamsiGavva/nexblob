@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { generateId } from "@/lib/json-utils";
+import { getSessionToken, getSessionUser } from "@/lib/auth";
 import type { Blob, Version } from "@/lib/types";
 
 export const runtime = "edge";
@@ -39,6 +40,14 @@ export async function GET(_req: Request, { params }: RouteContext) {
 export async function PUT(req: Request, { params }: RouteContext) {
   try {
     const { env } = await getCloudflareContext({ async: true });
+
+    // Auth guard: must be logged in to save
+    const token = getSessionToken(req);
+    const user = token ? await getSessionUser((env as any).DB, token) : null;
+    if (!user) {
+      return Response.json({ error: "Unauthorized: please sign in to save" }, { status: 401 });
+    }
+
     const { id } = await params;
 
     const body = await req.json() as {

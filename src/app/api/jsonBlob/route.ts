@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { generateId, expiryToTimestamp } from "@/lib/json-utils";
+import { getSessionToken, getSessionUser } from "@/lib/auth";
 import type { Blob } from "@/lib/types";
 
 export const runtime = "edge";
@@ -8,6 +9,14 @@ export const runtime = "edge";
 export async function POST(req: Request) {
   try {
     const { env } = await getCloudflareContext({ async: true });
+
+    // Auth guard: must be logged in to create blobs
+    const token = getSessionToken(req);
+    const user = token ? await getSessionUser((env as any).DB, token) : null;
+    if (!user) {
+      return Response.json({ error: "Unauthorized: please sign in to create blobs" }, { status: 401 });
+    }
+
     const body = await req.json() as {
       name?: string;
       content: string;
