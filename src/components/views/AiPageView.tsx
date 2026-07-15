@@ -184,6 +184,14 @@ export function AiPageView({ content, aiChatHistory, onUpdateAiChat }: AiPageVie
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
+  };
+
+
   const suggestions = [
     "Write SQL query to find elements with highest values",
     "Create MongoDB aggregation pipeline to group & count",
@@ -309,11 +317,13 @@ export function AiPageView({ content, aiChatHistory, onUpdateAiChat }: AiPageVie
           onSubmit={(e) => { e.preventDefault(); sendMessage(input); }}
           style={{ display: "flex", gap: 10 }}
         >
-          <input
+          <textarea
             id="ai-chat-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Ask me to write a query, filter or aggregation..."
+            rows={Math.min(6, input.split("\n").length || 1)}
             style={{
               flex: 1,
               padding: "10px 16px",
@@ -323,7 +333,12 @@ export function AiPageView({ content, aiChatHistory, onUpdateAiChat }: AiPageVie
               color: "var(--text-primary)",
               fontSize: 13,
               outline: "none",
-              transition: "all 0.15s ease"
+              transition: "all 0.15s ease",
+              resize: "none",
+              minHeight: "40px",
+              maxHeight: "150px",
+              lineHeight: "1.5",
+              fontFamily: "inherit"
             }}
             onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
             onBlur={(e) => (e.target.style.borderColor = "var(--border)")}

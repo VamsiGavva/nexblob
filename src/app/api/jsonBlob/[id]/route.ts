@@ -41,15 +41,6 @@ export async function PUT(req: Request, { params }: RouteContext) {
     const { env } = await getCloudflareContext({ async: true });
     const { id } = await params;
 
-    const existing = await env.DB
-      .prepare("SELECT * FROM blobs WHERE id = ?")
-      .bind(id)
-      .first<Blob>();
-
-    if (!existing) {
-      return Response.json({ error: "Blob not found" }, { status: 404 });
-    }
-
     const body = await req.json() as {
       content?: string;
       name?: string;
@@ -66,29 +57,57 @@ export async function PUT(req: Request, { params }: RouteContext) {
       } catch {
         return Response.json({ error: "Invalid JSON content" }, { status: 400 });
       }
-
-      // Save version before update
-      const versionId = generateId();
-      await env.DB
-        .prepare(
-          "INSERT INTO versions (id, blob_id, content, created_at) VALUES (?, ?, ?, ?)"
-        )
-        .bind(versionId, id, existing.content, Date.now())
-        .run();
     }
 
+    const existing = await env.DB
+      .prepare("SELECT * FROM blobs WHERE id = ?")
+      .bind(id)
+      .first<Blob>();
+
     const now = Date.now();
-    await env.DB
-      .prepare(
-        `UPDATE blobs SET
-           content = COALESCE(?, content),
-           name = COALESCE(?, name),
-           ai_chat_history = COALESCE(?, ai_chat_history),
-           updated_at = ?
-         WHERE id = ?`
-      )
-      .bind(body.content ?? null, body.name ?? null, body.ai_chat_history ?? null, now, id)
-      .run();
+
+    if (!existing) {
+      // Upsert: Insert new blob since it doesn't exist in the database (e.g. sample blobs)
+      await env.DB
+        .prepare(
+          `INSERT INTO blobs (id, workspace_id, name, content, ai_chat_history, created_at, updated_at, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          id,
+          null,
+          body.name ?? "Untitled",
+          body.content ?? "{}",
+          body.ai_chat_history ?? "[]",
+          now,
+          now,
+          null
+        )
+        .run();
+    } else {
+      if (body.content) {
+        // Save version before update
+        const versionId = generateId();
+        await env.DB
+          .prepare(
+            "INSERT INTO versions (id, blob_id, content, created_at) VALUES (?, ?, ?, ?)"
+          )
+          .bind(versionId, id, existing.content, now)
+          .run();
+      }
+
+      await env.DB
+        .prepare(
+          `UPDATE blobs SET
+             content = COALESCE(?, content),
+             name = COALESCE(?, name),
+             ai_chat_history = COALESCE(?, ai_chat_history),
+             updated_at = ?
+           WHERE id = ?`
+        )
+        .bind(body.content ?? null, body.name ?? null, body.ai_chat_history ?? null, now, id)
+        .run();
+    }
 
     const updated = await env.DB
       .prepare("SELECT * FROM blobs WHERE id = ?")
@@ -101,6 +120,7 @@ export async function PUT(req: Request, { params }: RouteContext) {
     return Response.json({ error: "Failed to update blob" }, { status: 500 });
   }
 }
+
 
 // DELETE /api/jsonBlob/:id
 export async function DELETE(_req: Request, { params }: RouteContext) {

@@ -2,11 +2,12 @@
 import type { ParseResult } from "./types";
 
 export function parseJSON(text: string): ParseResult {
-  const lines = text.split("\n");
-  const byteSize = new TextEncoder().encode(text).length;
+  const textStr = text ?? "{}";
+  const lines = textStr.split("\n");
+  const byteSize = new TextEncoder().encode(textStr).length;
 
   try {
-    const data = JSON.parse(text);
+    const data = JSON.parse(textStr);
     const keyCount = countKeys(data);
     const depth = calcDepth(data);
     return { data, error: null, lineCount: lines.length, byteSize, keyCount, depth };

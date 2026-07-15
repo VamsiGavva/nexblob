@@ -68,9 +68,16 @@ export default function Home() {
         created_at: Date.now(),
         updated_at: Date.now(),
         expires_at: null,
+        ai_chat_history: "[]",
       };
     }
-    return blobs.find((b) => b.id === activeBlobId) ?? blobs[0] ?? SAMPLE_BLOBS[0];
+    const match = blobs.find((b) => b.id === activeBlobId) ?? blobs[0] ?? SAMPLE_BLOBS[0];
+    return {
+      ...match,
+      name: match.name ?? "Untitled",
+      content: match.content ?? "{}",
+      ai_chat_history: match.ai_chat_history ?? "[]",
+    };
   }, [activeBlobId, activeTable, blobs, tableContent]);
 
   // Select a D1 database table
@@ -99,8 +106,12 @@ export default function Home() {
     if (match && (!match.content || match.content === "{}")) {
       try {
         const res = await fetch(`/api/jsonBlob/${id}`);
-        const data = await res.json() as Blob;
-        setBlobs((prev) => prev.map((b) => (b.id === id ? data : b)));
+        if (res.ok) {
+          const data = await res.json() as Blob;
+          if (data && typeof data.content === "string") {
+            setBlobs((prev) => prev.map((b) => (b.id === id ? data : b)));
+          }
+        }
       } catch {
         // Fallback
       }

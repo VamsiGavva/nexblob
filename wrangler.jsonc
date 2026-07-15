@@ -42,7 +42,7 @@
 		{
 			"binding": "DB",
 			"database_name": "nexblob",
-			"database_id": "ac0c2e98-305b-49bb-81e7-7e58dd6aa04f",
+			"database_id": "6ac44eae-7c2a-4a30-8c08-47af7b3c4b03",
 			"migrations_dir": "migrations"
 		}
 	]

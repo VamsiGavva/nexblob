@@ -22,16 +22,28 @@ export function EditorView({ content, onChange, parsed, isReadOnly = false }: Ed
 
   const handleFormat = useCallback(() => {
     if (parsed.data) {
-      onChange(formatJSON(parsed.data));
+      try {
+        const formatted = formatJSON(parsed.data);
+        onChange(formatted);
+      } catch (err) {
+        alert("Failed to format: " + (err as Error).message);
+      }
+    } else if (parsed.error) {
+      alert("Cannot format: Invalid JSON structure (" + parsed.error + ")");
     }
-  }, [parsed.data, onChange]);
+  }, [parsed.data, parsed.error, onChange]);
+
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     if (!editorRef.current) return;
 
     const updateListener = CMEditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        onChange(update.state.doc.toString());
+        onChangeRef.current(update.state.doc.toString());
       }
     });
 
@@ -64,6 +76,7 @@ export function EditorView({ content, onChange, parsed, isReadOnly = false }: Ed
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReadOnly]);
+
 
   // Keep editor in sync when content changes externally
   useEffect(() => {
