@@ -1,7 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-export const runtime = "edge";
-
 // GET /api/connections
 export async function GET(req: Request) {
   try {

@@ -6,8 +6,6 @@ import {
   SESSION_TTL_MS,
 } from "@/lib/auth";
 
-export const runtime = "edge";
-
 /**
  * GET /api/auth/dev-login
  * Backdoor route to log in as any user in local development without Google OAuth.

@@ -1,8 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getSessionToken, getSessionUser } from "@/lib/auth";
 
-export const runtime = "edge";
-
 function resolveGuestId(req: Request): string {
   const cookieHeader = req.headers.get("Cookie") ?? "";
   for (const part of cookieHeader.split(";")) {
