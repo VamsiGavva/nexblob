@@ -3,8 +3,31 @@ import { getSessionToken, getSessionUser } from "@/lib/auth";
 
 export const runtime = "edge";
 
+function resolveGuestId(req: Request): string {
+  const cookieHeader = req.headers.get("Cookie") ?? "";
+  for (const part of cookieHeader.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name.trim() === "nb_guest") {
+      const val = rest.join("=").trim();
+      if (val && val.length === 36) return val;
+    }
+  }
+  return crypto.randomUUID();
+}
+
 interface RouteContext {
   params: Promise<{ id: string }>;
+}
+
+async function resolveUserId(req: Request, db: D1Database): Promise<string> {
+  const token = getSessionToken(req);
+  if (token) {
+    try {
+      const user = await getSessionUser(db, token);
+      if (user) return user.id;
+    } catch { /* fall through */ }
+  }
+  return resolveGuestId(req);
 }
 
 export async function DELETE(
@@ -13,18 +36,13 @@ export async function DELETE(
 ) {
   try {
     const { env } = await getCloudflareContext({ async: true });
-    const token = getSessionToken(req);
-    const user = token ? await getSessionUser((env as any).DB, token) : null;
-    if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const userId = await resolveUserId(req, (env as any).DB);
     const { id } = await params;
 
     // Verify ownership
     const connection = await env.DB
       .prepare("SELECT id FROM d1_connections WHERE id = ? AND user_id = ?")
-      .bind(id, user.id)
+      .bind(id, userId)
       .first();
 
     if (!connection) {
@@ -33,7 +51,7 @@ export async function DELETE(
 
     await env.DB
       .prepare("DELETE FROM d1_connections WHERE id = ? AND user_id = ?")
-      .bind(id, user.id)
+      .bind(id, userId)
       .run();
 
     return new Response(null, { status: 204 });

@@ -108,11 +108,18 @@ export default function Home() {
       })
     });
     if (!res.ok) {
-      const data = await res.json() as any;
-      throw new Error(data.error || "Failed to add connection");
+      let errorMsg = "Failed to add connection";
+      try {
+        const data = await res.json() as any;
+        errorMsg = data.error || errorMsg;
+      } catch {
+        errorMsg = `Server error (${res.status}): ${await res.text().catch(() => "unknown")}`;
+      }
+      throw new Error(errorMsg);
     }
     await fetchConnections();
   }, [fetchConnections]);
+
 
   const handleDeleteConnection = useCallback(async (id: string) => {
     const res = await fetch(`/api/connections/${id}`, {

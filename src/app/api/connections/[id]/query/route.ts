@@ -3,8 +3,31 @@ import { getSessionToken, getSessionUser } from "@/lib/auth";
 
 export const runtime = "edge";
 
+function resolveGuestId(req: Request): string {
+  const cookieHeader = req.headers.get("Cookie") ?? "";
+  for (const part of cookieHeader.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name.trim() === "nb_guest") {
+      const val = rest.join("=").trim();
+      if (val && val.length === 36) return val;
+    }
+  }
+  return crypto.randomUUID();
+}
+
 interface RouteContext {
   params: Promise<{ id: string }>;
+}
+
+async function resolveUserId(req: Request, db: D1Database): Promise<string> {
+  const token = getSessionToken(req);
+  if (token) {
+    try {
+      const user = await getSessionUser(db, token);
+      if (user) return user.id;
+    } catch { /* fall through */ }
+  }
+  return resolveGuestId(req);
 }
 
 export async function POST(
@@ -13,12 +36,7 @@ export async function POST(
 ) {
   try {
     const { env } = await getCloudflareContext({ async: true });
-    const token = getSessionToken(req);
-    const user = token ? await getSessionUser((env as any).DB, token) : null;
-    if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    const userId = await resolveUserId(req, (env as any).DB);
     const { id } = await params;
     const { sql, params: queryParams } = await req.json() as {
       sql: string;
@@ -32,7 +50,7 @@ export async function POST(
     // Fetch connection details from DB
     const conn = await env.DB
       .prepare("SELECT account_id, database_id, api_token FROM d1_connections WHERE id = ? AND user_id = ?")
-      .bind(id, user.id)
+      .bind(id, userId)
       .first<{ account_id: string; database_id: string; api_token: string }>();
 
     if (!conn) {
