@@ -1,8 +1,12 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { ParseResult } from "@/lib/types";
 
-interface SqlViewProps { parsed: ParseResult; }
+interface SqlViewProps {
+  parsed: ParseResult;
+  activeConnectionId: string | null;
+  activeTable: string | null;
+}
 
 // Lazy-load alasql ONLY on client — uses the browser-only shim to avoid react-native deps
 type AlasqlFn = (query: string, params?: unknown[]) => unknown;
@@ -16,12 +20,28 @@ async function getAlasql(): Promise<AlasqlFn> {
   return alasqlCache;
 }
 
-export function SqlView({ parsed }: SqlViewProps) {
+export function SqlView({ parsed, activeConnectionId, activeTable }: SqlViewProps) {
   const [query, setQuery] = useState("SELECT * FROM ? LIMIT 10");
   const [results, setResults] = useState<Record<string, unknown>[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [execTime, setExecTime] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
+
+  // Sync default query when connection or selected table changes
+  useEffect(() => {
+    if (activeConnectionId) {
+      if (activeTable) {
+        setQuery(`SELECT * FROM ${activeTable} LIMIT 10`);
+      } else {
+        setQuery("SELECT * FROM sqlite_master WHERE type='table'");
+      }
+    } else {
+      setQuery("SELECT * FROM ? LIMIT 10");
+    }
+    setResults(null);
+    setError(null);
+    setExecTime(null);
+  }, [activeConnectionId, activeTable]);
 
   const rows = useMemo(() => {
     if (!parsed.data) return [];
@@ -39,9 +59,32 @@ export function SqlView({ parsed }: SqlViewProps) {
     setError(null);
     const start = performance.now();
     try {
-      const alasql = await getAlasql();
-      const res = alasql(query, [rows]);
-      setResults(Array.isArray(res) ? res : [{ result: String(res) }]);
+      if (activeConnectionId) {
+        // Execute on remote Cloudflare D1 Database connection
+        const res = await fetch(`/api/connections/${activeConnectionId}/query`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sql: query }),
+        });
+
+        let data: any;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error("Invalid response format from server");
+        }
+
+        if (!res.ok || data.error) {
+          throw new Error(data.error || "Query failed");
+        }
+
+        setResults(data.rows || []);
+      } else {
+        // Execute locally via AlaSQL on active JSON blob
+        const alasql = await getAlasql();
+        const res = alasql(query, [rows]);
+        setResults(Array.isArray(res) ? res : [{ result: String(res) }]);
+      }
       setExecTime(performance.now() - start);
     } catch (e) {
       setError((e as Error).message);

@@ -20,6 +20,7 @@ export default function Home() {
   const [tableContent, setTableContent] = useState<string>("[]");
   const [isDbLoading, setIsDbLoading] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [tableChatHistories, setTableChatHistories] = useState<Record<string, string>>({});
 
   // Manual save and share state
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
@@ -205,13 +206,14 @@ export default function Home() {
         workspace_id: null,
         name: activeTable,
         content: tableContent,
+        ai_chat_history: tableChatHistories[activeTable] ?? "[]",
         created_at: Date.now(),
         updated_at: Date.now(),
         expires_at: null,
       };
     }
     return blobs.find((b) => b.id === activeBlobId) ?? blobs[0] ?? SAMPLE_BLOBS[0];
-  }, [activeBlobId, activeTable, blobs, tableContent]);
+  }, [activeBlobId, activeTable, blobs, tableContent, tableChatHistories]);
 
   // Select a D1 database table
   const handleSelectTable = useCallback(async (tableName: string) => {
@@ -309,13 +311,22 @@ export default function Home() {
     [activeBlobId, activeTable]
   );
 
-  // Sync AI Chat history to local blob state
+  // Sync AI Chat history to local blob state with background auto-save
   const updateAiChat = useCallback(
     (history: string) => {
-      if (activeTable) return;
+      if (activeTable) {
+        setTableChatHistories((prev) => ({ ...prev, [activeTable]: history }));
+        return;
+      }
       setBlobs((prev) =>
         prev.map((b) => (b.id === activeBlobId ? { ...b, ai_chat_history: history } : b))
       );
+      // Auto-save chat history to D1 in the background so it is not lost on reload or tab switch!
+      fetch(`/api/jsonBlob/${activeBlobId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ai_chat_history: history })
+      }).catch((err) => console.error("Failed to auto-save AI chat history:", err));
     },
     [activeBlobId, activeTable]
   );

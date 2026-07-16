@@ -195,7 +195,13 @@ export function AppShell({
                 {view === "editor" && <TreePanel parsed={parsed} />}
                 {view === "table" && <TableViewComponent parsed={parsed} />}
                 {view === "raw" && <RawView content={activeBlob.content} parsed={parsed} />}
-                {view === "sql" && <SqlView parsed={parsed} />}
+                {view === "sql" && (
+                  <SqlView
+                    parsed={parsed}
+                    activeConnectionId={activeConnectionId}
+                    activeTable={activeTable}
+                  />
+                )}
                 {view === "chart" && <ChartView parsed={parsed} />}
                 {view === "diff" && (
                   <DiffInputView
