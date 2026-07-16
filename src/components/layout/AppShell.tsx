@@ -12,7 +12,7 @@ import { DiffSidePanel, DiffInputView, alignDiffs } from "@/components/views/Dif
 import { AiPageView } from "@/components/views/AiPageView";
 import dynamic from "next/dynamic";
 import { parseJSON, formatJSON } from "@/lib/json-utils";
-import type { Blob, ViewMode } from "@/lib/types";
+import type { Blob, ViewMode, D1Connection } from "@/lib/types";
 import type { User } from "@/hooks/useUser";
 
 // SqlView must be no-SSR because alasql only works in the browser
@@ -32,10 +32,14 @@ interface AppShellProps {
   onUpdateName: (name: string) => void;
   onNewBlob: () => void;
   // D1 DB props
+  connections: D1Connection[];
+  activeConnectionId: string | null;
+  onSelectConnection: (id: string | null) => void;
+  onAddConnection: (name: string, accountId: string, dbId: string, apiToken: string) => Promise<void>;
+  onDeleteConnection: (id: string) => Promise<void>;
   connectedTables: string[];
   activeTable: string | null;
   onSelectTable: (name: string) => void;
-  onConnectDb: () => void;
   isDbLoading: boolean;
   // Save props
   onSave: () => void;
@@ -52,7 +56,8 @@ interface AppShellProps {
 export function AppShell({
   blobs, activeBlob, activeBlobId, view,
   onSelectBlob, onChangeView, onUpdateContent, onUpdateName, onNewBlob,
-  connectedTables, activeTable, onSelectTable, onConnectDb, isDbLoading,
+  connections, activeConnectionId, onSelectConnection, onAddConnection, onDeleteConnection,
+  connectedTables, activeTable, onSelectTable, isDbLoading,
   onSave, saveStatus, onUpdateAiChat,
   onShare, shareStatus,
   user, onLogout
@@ -122,11 +127,16 @@ export function AppShell({
         onSelectBlob={onSelectBlob}
         onNewBlob={onNewBlob}
         // D1 Props
+        connections={connections}
+        activeConnectionId={activeConnectionId}
+        onSelectConnection={onSelectConnection}
+        onAddConnection={onAddConnection}
+        onDeleteConnection={onDeleteConnection}
         connectedTables={connectedTables}
         activeTable={activeTable}
         onSelectTable={onSelectTable}
-        onConnectDb={onConnectDb}
         isDbLoading={isDbLoading}
+        user={user}
       />
       <main className="main-area">
         <TopBar

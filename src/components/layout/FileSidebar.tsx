@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { parseJSON } from "@/lib/json-utils";
-import type { Blob } from "@/lib/types";
+import type { Blob, D1Connection } from "@/lib/types";
 
 interface FileSidebarProps {
   blobs: Blob[];
@@ -9,22 +9,54 @@ interface FileSidebarProps {
   onSelectBlob: (id: string) => void;
   onNewBlob: () => void;
   // D1 Props
+  connections: D1Connection[];
+  activeConnectionId: string | null;
+  onSelectConnection: (id: string | null) => void;
+  onAddConnection: (name: string, accountId: string, dbId: string, apiToken: string) => void;
+  onDeleteConnection: (id: string) => void;
   connectedTables: string[];
   activeTable: string | null;
   onSelectTable: (name: string) => void;
-  onConnectDb: () => void;
   isDbLoading: boolean;
 }
 
 export function FileSidebar({
   blobs, activeBlobId, onSelectBlob, onNewBlob,
-  connectedTables, activeTable, onSelectTable, onConnectDb, isDbLoading
+  connections, activeConnectionId, onSelectConnection, onAddConnection, onDeleteConnection,
+  connectedTables, activeTable, onSelectTable, isDbLoading
 }: FileSidebarProps) {
   const [search, setSearch] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  // Form states
+  const [name, setName] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [dbId, setDbId] = useState("");
+  const [apiToken, setApiToken] = useState("");
 
   const filtered = blobs.filter((b) =>
     b.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    if (!name || !accountId || !dbId || !apiToken) {
+      setFormError("All fields are required");
+      return;
+    }
+    try {
+      onAddConnection(name.trim(), accountId.trim(), dbId.trim(), apiToken.trim());
+      setIsModalOpen(false);
+      setName("");
+      setAccountId("");
+      setDbId("");
+      setApiToken("");
+    } catch (err: any) {
+      setFormError(err.message || "Failed to add connection");
+    }
+  };
 
   return (
     <aside className="file-sidebar" aria-label="File sidebar">
@@ -45,7 +77,7 @@ export function FileSidebar({
         />
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
         <div className="sidebar-section">
           <span className="sidebar-label">Open</span>
         </div>
@@ -53,14 +85,16 @@ export function FileSidebar({
         {filtered.map((blob) => {
           const { error } = parseJSON(blob.content);
           const isValid = error === null;
-          // De-highlight blob if we are viewing a database table
-          const isActive = blob.id === activeBlobId && activeTable === null;
+          const isActive = blob.id === activeBlobId && activeTable === null && activeConnectionId === null;
           return (
             <button
               key={blob.id}
               id={`blob-item-${blob.id}`}
               className={`blob-item ${isActive ? "active" : ""}`}
-              onClick={() => onSelectBlob(blob.id)}
+              onClick={() => {
+                onSelectConnection(null);
+                onSelectBlob(blob.id);
+              }}
               aria-current={isActive ? "true" : undefined}
             >
               <span
@@ -81,7 +115,10 @@ export function FileSidebar({
         <button
           id="new-blob-btn"
           className="new-blob-btn"
-          onClick={onNewBlob}
+          onClick={() => {
+            onSelectConnection(null);
+            onNewBlob();
+          }}
           aria-label="Create new blob"
         >
           <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
@@ -89,54 +126,213 @@ export function FileSidebar({
         </button>
 
         <div className="sidebar-section" style={{ marginTop: 12 }}>
-          <span className="sidebar-label">Connected tables</span>
+          <span className="sidebar-label">Connected D1 Databases</span>
         </div>
 
-        {connectedTables.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "4px 8px" }}>
-            {connectedTables.map((table) => {
-              const isActive = activeTable === table;
+        {connections.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "4px 8px" }}>
+            {connections.map((conn) => {
+              const isConnActive = activeConnectionId === conn.id;
               return (
-                <button
-                  key={table}
-                  id={`table-item-${table}`}
-                  className={`blob-item ${isActive ? "active" : ""}`}
-                  onClick={() => onSelectTable(table)}
-                  aria-current={isActive ? "true" : undefined}
-                  style={{ paddingLeft: 12 }}
-                >
-                  <span
-                    className="blob-status-dot valid"
-                    style={{ background: "var(--accent)" }}
-                    title="Live D1 Table"
-                  />
-                  <span className="blob-name" style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                    {table}
-                  </span>
-                </button>
+                <div key={conn.id} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <div className={`conn-header ${isConnActive ? "active" : ""}`} style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    color: "var(--text-secondary)",
+                    fontWeight: 500,
+                    background: "var(--surface-sunken)",
+                    borderRadius: "var(--radius)",
+                    borderLeft: isConnActive ? "3px solid var(--accent)" : "none"
+                  }}>
+                    <button
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "inherit",
+                        fontWeight: isConnActive ? 600 : "inherit",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        flex: 1,
+                        padding: "4px 0",
+                        fontSize: 11,
+                        fontFamily: "var(--font-heading)"
+                      }}
+                      onClick={() => onSelectConnection(conn.id)}
+                    >
+                      🗄️ {conn.name}
+                    </button>
+                    <button
+                      className="conn-delete-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Are you sure you want to disconnect ${conn.name}?`)) {
+                          onDeleteConnection(conn.id);
+                        }
+                      }}
+                      title="Delete Connection"
+                      aria-label={`Delete connection ${conn.name}`}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--text-muted)",
+                        cursor: "pointer",
+                        padding: "2px 4px",
+                        borderRadius: 4,
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {isConnActive && (
+                    <div style={{ paddingLeft: 12, display: "flex", flexDirection: "column", gap: 2 }}>
+                      {isDbLoading ? (
+                        <span style={{ color: "var(--text-muted)", fontSize: 11, padding: "4px 12px" }}>
+                          Loading tables…
+                        </span>
+                      ) : connectedTables.length > 0 ? (
+                        connectedTables.map((table) => {
+                          const isTableActive = activeTable === table;
+                          return (
+                            <button
+                              key={table}
+                              id={`table-item-${table}`}
+                              className={`blob-item ${isTableActive ? "active" : ""}`}
+                              onClick={() => onSelectTable(table)}
+                              aria-current={isTableActive ? "true" : undefined}
+                              style={{ paddingLeft: 12, height: 28 }}
+                            >
+                              <span
+                                className="blob-status-dot valid"
+                                style={{ background: "var(--accent)" }}
+                              />
+                              <span className="blob-name" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                                {table}
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontSize: 11, padding: "4px 12px" }}>
+                          No tables found
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
         ) : (
           <div style={{ padding: "8px 16px" }}>
             <p style={{ color: "var(--text-muted)", fontSize: 12, lineHeight: 1.5 }}>
-              Connect a D1 table to query live data
+              Connect your D1 databases to query tables.
             </p>
           </div>
         )}
 
-        <div style={{ padding: "4px 16px 16px" }}>
+        <div style={{ padding: "8px 16px" }}>
           <button
             id="connect-table-btn"
             className="btn btn-ghost"
-            style={{ fontSize: 11, padding: "4px 8px" }}
-            onClick={onConnectDb}
-            disabled={isDbLoading}
+            style={{ fontSize: 11, padding: "6px 12px", width: "100%", textAlign: "center" }}
+            onClick={() => setIsModalOpen(true)}
           >
-            {isDbLoading ? "Connecting…" : "+ Connect database / Refresh"}
+            + Connect database
           </button>
         </div>
       </div>
+
+      {isModalOpen && (
+        <div className="modal-overlay">
+          <form className="modal-container" onSubmit={handleSubmit}>
+            <div className="modal-header">
+              <span className="modal-title">Connect D1 Database</span>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setIsModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {formError && (
+              <div style={{ color: "var(--danger)", background: "var(--danger-bg)", padding: 8, borderRadius: 6, fontSize: 12 }}>
+                {formError}
+              </div>
+            )}
+
+            <div className="form-group">
+              <label className="form-label">Connection Name</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. My Prod Analytics"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Cloudflare Account ID</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Hex Account ID"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">D1 Database ID</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="UUID Database ID"
+                value={dbId}
+                onChange={(e) => setDbId(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Cloudflare API Token</label>
+              <input
+                type="password"
+                className="form-input"
+                placeholder="API Token (Read/Write D1)"
+                value={apiToken}
+                onChange={(e) => setApiToken(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setIsModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+              >
+                Connect
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </aside>
   );
 }

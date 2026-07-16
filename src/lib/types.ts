@@ -46,3 +46,13 @@ export interface ParseResult {
 }
 
 export type ExpiryOption = "never" | "30d" | "75d" | "custom";
+
+export interface D1Connection {
+  id: string;
+  name: string;
+  accountId: string;
+  databaseId: string;
+  apiToken: string;
+}
+
+

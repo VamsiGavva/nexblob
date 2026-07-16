@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { SAMPLE_BLOBS } from "@/lib/sample-data";
 import { useUser } from "@/hooks/useUser";
-import type { ViewMode, Blob } from "@/lib/types";
+import type { ViewMode, Blob, D1Connection } from "@/lib/types";
 
 export default function Home() {
   const { user, logout } = useUser();
@@ -13,6 +13,8 @@ export default function Home() {
   const [view, setView] = useState<ViewMode>("editor");
 
   // D1 Database integration states
+  const [connections, setConnections] = useState<D1Connection[]>([]);
+  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
   const [connectedTables, setConnectedTables] = useState<string[]>([]);
   const [activeTable, setActiveTable] = useState<string | null>(null);
   const [tableContent, setTableContent] = useState<string>("[]");
@@ -39,6 +41,7 @@ export default function Home() {
               return [data, ...prev];
             });
             setActiveBlobId(data.id);
+            setActiveConnectionId(null);
             setActiveTable(null);
           }
         } catch (e) {
@@ -48,55 +51,129 @@ export default function Home() {
     }
   }, []);
 
-  // Attempt to fetch real D1 blobs and tables on load
-  const loadDatabaseData = useCallback(async () => {
-    setIsDbLoading(true);
+  // Fetch connections list
+  const fetchConnections = useCallback(async () => {
     try {
-      // 1. Fetch tables list
-      const tablesRes = await fetch("/api/tables");
-      const tablesData = await tablesRes.json() as any;
-      if (tablesData.tables) {
-        setConnectedTables(tablesData.tables);
+      const res = await fetch("/api/connections");
+      if (res.ok) {
+        const data = await res.json() as any;
+        if (data.connections) {
+          setConnections(data.connections);
+        }
       }
+    } catch (e) {
+      console.error("Failed to fetch D1 connections:", e);
+    }
+  }, []);
 
-      // 2. Fetch actual blobs list
+  // Fetch tables when active connection changes
+  const fetchTables = useCallback(async (connId: string) => {
+    setIsDbLoading(true);
+    setConnectedTables([]);
+    setActiveTable(null);
+    try {
+      const res = await fetch(`/api/connections/${connId}/tables`);
+      if (res.ok) {
+        const data = await res.json() as any;
+        if (data.tables) {
+          setConnectedTables(data.tables);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch D1 tables:", e);
+    } finally {
+      setIsDbLoading(false);
+    }
+  }, []);
+
+  const handleSelectConnection = useCallback((id: string | null) => {
+    setActiveConnectionId(id);
+    if (id) {
+      fetchTables(id);
+    } else {
+      setConnectedTables([]);
+      setActiveTable(null);
+    }
+  }, [fetchTables]);
+
+  const handleAddConnection = useCallback(async (name: string, accountId: string, dbId: string, apiToken: string) => {
+    const res = await fetch("/api/connections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        account_id: accountId,
+        database_id: dbId,
+        api_token: apiToken
+      })
+    });
+    if (!res.ok) {
+      const data = await res.json() as any;
+      throw new Error(data.error || "Failed to add connection");
+    }
+    await fetchConnections();
+  }, [fetchConnections]);
+
+  const handleDeleteConnection = useCallback(async (id: string) => {
+    const res = await fetch(`/api/connections/${id}`, {
+      method: "DELETE"
+    });
+    if (res.ok) {
+      if (activeConnectionId === id) {
+        setActiveConnectionId(null);
+        setConnectedTables([]);
+        setActiveTable(null);
+      }
+      await fetchConnections();
+    }
+  }, [activeConnectionId, fetchConnections]);
+
+  // Attempt to fetch real D1 blobs on load
+  const loadDatabaseData = useCallback(async () => {
+    try {
       const blobsRes = await fetch("/api/jsonBlob");
       const blobsData = await blobsRes.json() as any;
       if (blobsData.blobs && blobsData.blobs.length > 0) {
-        // Fetch content of the first blob to select it
         const first = blobsData.blobs[0];
         const detailRes = await fetch(`/api/jsonBlob/${first.id}`);
         const detailData = await detailRes.json() as any;
 
-        // Construct initial list
         const updatedList = blobsData.blobs.map((b: any) =>
           b.id === first.id ? detailData : { ...b, content: "{}" }
         ) as Blob[];
         
-        // Merge with shared blob if loaded
         setBlobs((prev) => {
           const sharedBlob = prev.find((b) => !updatedList.some((u) => u.id === b.id));
           return sharedBlob ? [sharedBlob, ...updatedList] : updatedList;
         });
         
-        // Keep shared blob selected if it was set on mount
         const params = new URLSearchParams(window.location.search);
         const sharedId = params.get("shared");
         if (!sharedId) {
           setActiveBlobId(first.id);
         }
+        setActiveConnectionId(null);
         setActiveTable(null);
       }
     } catch {
-      // Keep sample data if local Next dev server is used
-    } finally {
-      setIsDbLoading(false);
+      // Fallback
     }
   }, []);
 
   useEffect(() => {
     loadDatabaseData();
   }, [loadDatabaseData]);
+
+  useEffect(() => {
+    if (user) {
+      fetchConnections();
+    } else {
+      setConnections([]);
+      setActiveConnectionId(null);
+      setConnectedTables([]);
+      setActiveTable(null);
+    }
+  }, [user, fetchConnections]);
 
   // Virtual active blob derived from selection (real blob or database table)
   const activeBlob = useMemo(() => {
@@ -116,9 +193,16 @@ export default function Home() {
 
   // Select a D1 database table
   const handleSelectTable = useCallback(async (tableName: string) => {
+    if (!activeConnectionId) return;
     setActiveTable(tableName);
     try {
-      const res = await fetch(`/api/tables/${tableName}?limit=100`);
+      const res = await fetch(`/api/connections/${activeConnectionId}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sql: `SELECT * FROM ${tableName} LIMIT 100`
+        }),
+      });
       const data = await res.json() as any;
       if (data.rows) {
         setTableContent(JSON.stringify(data.rows, null, 2));
@@ -128,15 +212,15 @@ export default function Home() {
     } catch (e) {
       setTableContent(JSON.stringify({ error: "Failed to query table: " + (e as Error).message }, null, 2));
     }
-  }, []);
+  }, [activeConnectionId]);
 
   // Select a JSON blob
   const handleSelectBlob = useCallback(async (id: string) => {
+    setActiveConnectionId(null);
     setActiveTable(null);
     setActiveBlobId(id);
 
     const match = blobs.find((b) => b.id === id);
-    // If the blob's content was not fetched yet, retrieve it
     if (match && (!match.content || match.content === "{}")) {
       try {
         const res = await fetch(`/api/jsonBlob/${id}`);
@@ -152,7 +236,6 @@ export default function Home() {
   const updateContent = useCallback(
     (content: string) => {
       if (activeTable) {
-        // Table content is read-only representation of database rows
         setTableContent(content);
         return;
       }
@@ -182,6 +265,7 @@ export default function Home() {
     };
     setBlobs((prev) => [newBlob, ...prev]);
     setActiveBlobId(id);
+    setActiveConnectionId(null);
     setActiveTable(null);
     setView("editor");
     try {
@@ -269,11 +353,15 @@ export default function Home() {
       onUpdateContent={updateContent}
       onUpdateName={updateName}
       onNewBlob={createNewBlob}
-      // D1 props
+      // D1 connection props
+      connections={connections}
+      activeConnectionId={activeConnectionId}
+      onSelectConnection={handleSelectConnection}
+      onAddConnection={handleAddConnection}
+      onDeleteConnection={handleDeleteConnection}
       connectedTables={connectedTables}
       activeTable={activeTable}
       onSelectTable={handleSelectTable}
-      onConnectDb={loadDatabaseData}
       isDbLoading={isDbLoading}
       // Save props
       onSave={handleSave}
