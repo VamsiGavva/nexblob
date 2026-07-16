@@ -136,7 +136,6 @@ export function AppShell({
         activeTable={activeTable}
         onSelectTable={onSelectTable}
         isDbLoading={isDbLoading}
-        user={user}
       />
       <main className="main-area">
         <TopBar
