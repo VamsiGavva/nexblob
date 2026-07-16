@@ -41,6 +41,7 @@ interface AppShellProps {
   activeTable: string | null;
   onSelectTable: (name: string) => void;
   isDbLoading: boolean;
+  dbError: string | null;
   // Save props
   onSave: () => void;
   saveStatus: "idle" | "saving" | "success" | "error";
@@ -57,7 +58,7 @@ export function AppShell({
   blobs, activeBlob, activeBlobId, view,
   onSelectBlob, onChangeView, onUpdateContent, onUpdateName, onNewBlob,
   connections, activeConnectionId, onSelectConnection, onAddConnection, onDeleteConnection,
-  connectedTables, activeTable, onSelectTable, isDbLoading,
+  connectedTables, activeTable, onSelectTable, isDbLoading, dbError,
   onSave, saveStatus, onUpdateAiChat,
   onShare, shareStatus,
   user, onLogout
@@ -136,6 +137,7 @@ export function AppShell({
         activeTable={activeTable}
         onSelectTable={onSelectTable}
         isDbLoading={isDbLoading}
+        dbError={dbError}
       />
       <main className="main-area">
         <TopBar

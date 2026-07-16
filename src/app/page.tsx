@@ -19,6 +19,7 @@ export default function Home() {
   const [activeTable, setActiveTable] = useState<string | null>(null);
   const [tableContent, setTableContent] = useState<string>("[]");
   const [isDbLoading, setIsDbLoading] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   // Manual save and share state
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
@@ -69,18 +70,31 @@ export default function Home() {
   // Fetch tables when active connection changes
   const fetchTables = useCallback(async (connId: string) => {
     setIsDbLoading(true);
+    setDbError(null);
     setConnectedTables([]);
     setActiveTable(null);
     try {
-      const res = await fetch(`/api/connections/${connId}/tables`);
+      const res = await fetch(`/api/connections/${connId}/tables?t=${Date.now()}`);
       if (res.ok) {
         const data = await res.json() as any;
         if (data.tables) {
           setConnectedTables(data.tables);
+        } else {
+          setDbError("Invalid response format");
         }
+      } else {
+        let errorMsg = "Failed to load tables";
+        try {
+          const data = await res.json() as any;
+          errorMsg = data.error || errorMsg;
+        } catch {
+          errorMsg = await res.text() || errorMsg;
+        }
+        setDbError(errorMsg);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to fetch D1 tables:", e);
+      setDbError(e.message || "Failed to fetch tables");
     } finally {
       setIsDbLoading(false);
     }
@@ -88,6 +102,7 @@ export default function Home() {
 
   const handleSelectConnection = useCallback((id: string | null) => {
     setActiveConnectionId(id);
+    setDbError(null);
     if (id) {
       fetchTables(id);
     } else {
@@ -370,6 +385,7 @@ export default function Home() {
       activeTable={activeTable}
       onSelectTable={handleSelectTable}
       isDbLoading={isDbLoading}
+      dbError={dbError}
       // Save props
       onSave={handleSave}
       saveStatus={saveStatus}

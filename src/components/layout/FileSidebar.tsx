@@ -18,12 +18,13 @@ interface FileSidebarProps {
   activeTable: string | null;
   onSelectTable: (name: string) => void;
   isDbLoading: boolean;
+  dbError: string | null;
 }
 
 export function FileSidebar({
   blobs, activeBlobId, onSelectBlob, onNewBlob,
   connections, activeConnectionId, onSelectConnection, onAddConnection, onDeleteConnection,
-  connectedTables, activeTable, onSelectTable, isDbLoading
+  connectedTables, activeTable, onSelectTable, isDbLoading, dbError
 }: FileSidebarProps) {
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -193,6 +194,10 @@ export function FileSidebar({
                       {isDbLoading ? (
                         <span style={{ color: "var(--text-muted)", fontSize: 11, padding: "4px 12px" }}>
                           Loading tables…
+                        </span>
+                      ) : dbError ? (
+                        <span style={{ color: "var(--invalid)", fontSize: 11, padding: "4px 12px", wordBreak: "break-all" }}>
+                          ⚠️ {dbError}
                         </span>
                       ) : connectedTables.length > 0 ? (
                         connectedTables.map((table) => {

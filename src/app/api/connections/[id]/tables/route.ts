@@ -68,7 +68,14 @@ export async function GET(
     const resultsArray = cfData.result?.[0]?.results || [];
     const tables = resultsArray.map((r: any) => r.name);
 
-    return Response.json({ tables });
+    return Response.json(
+      { tables },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        },
+      }
+    );
   } catch (err) {
     console.error("[GET /api/connections/[id]/tables]", err);
     return Response.json({ error: "Failed to list tables: " + (err as Error).message }, { status: 500 });
