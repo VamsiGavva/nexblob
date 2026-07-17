@@ -42,11 +42,22 @@ export async function POST(req: Request) {
       action?: string;
       content: string;
       messages?: Array<{ role: "user" | "model"; content: string }>;
+      activeTable?: string | null;
+      activeConnectionId?: string | null;
     };
     const action = body.action || "chat";
-    const systemPrompt = PROMPTS[action];
+    let systemPrompt = PROMPTS[action];
     if (!systemPrompt) {
       return Response.json({ error: "Unknown action" }, { status: 400 });
+    }
+
+    if (action === "chat") {
+      if (body.activeConnectionId && body.activeTable) {
+        systemPrompt += `\n\nCRITICAL CONTEXT: The user is currently connected to a Cloudflare D1 Database (SQLite compatible) and viewing the table named "${body.activeTable}". 
+Any SQL queries you write MUST target this SQLite table "${body.activeTable}" instead of placeholders like "my_table". Always use SQLite-compatible syntax (such as CAST(x AS INTEGER), SQLite date/time functions, etc.).`;
+      } else {
+        systemPrompt += `\n\nCRITICAL CONTEXT: The user is currently querying a local JSON document. Any SQL queries you write MUST use AlaSQL-compatible syntax and reference the table as "?" (a parameter placeholder representing the active JSON array), e.g. "SELECT * FROM ?".`;
+      }
     }
 
     // Get Gemini key from Cloudflare context env

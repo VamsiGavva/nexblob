@@ -7,6 +7,8 @@ interface AiPageViewProps {
   parsed: ParseResult;
   aiChatHistory?: string;
   onUpdateAiChat?: (history: string) => void;
+  activeTable?: string | null;
+  activeConnectionId?: string | null;
 }
 
 interface Message {
@@ -109,7 +111,13 @@ function renderMessageContent(text: string) {
   });
 }
 
-export function AiPageView({ content, aiChatHistory, onUpdateAiChat }: AiPageViewProps) {
+export function AiPageView({
+  content,
+  aiChatHistory,
+  onUpdateAiChat,
+  activeTable,
+  activeConnectionId,
+}: AiPageViewProps) {
   const defaultMessage: Message = {
     role: "model",
     content: "Hello! I am your AI query and aggregation expert. I have full context of the active JSON document on the left. Ask me to write a query, database aggregation (SQL, MongoDB pipeline, JS mapping), or filters based on the JSON!"
@@ -161,7 +169,9 @@ export function AiPageView({ content, aiChatHistory, onUpdateAiChat }: AiPageVie
         body: JSON.stringify({
           action: "chat",
           content, // Sends the active editor's JSON text
-          messages: updatedMessages
+          messages: updatedMessages,
+          activeTable,
+          activeConnectionId: activeConnectionId ? String(activeConnectionId) : null,
         })
       });
 

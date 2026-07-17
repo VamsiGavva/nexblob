@@ -242,6 +242,8 @@ export function AppShell({
                     parsed={parsed}
                     aiChatHistory={activeBlob.ai_chat_history}
                     onUpdateAiChat={onUpdateAiChat}
+                    activeTable={activeTable}
+                    activeConnectionId={activeConnectionId}
                   />
                 )}
               </div>
