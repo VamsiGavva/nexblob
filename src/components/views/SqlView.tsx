@@ -21,7 +21,18 @@ async function getAlasql(): Promise<AlasqlFn> {
 }
 
 export function SqlView({ parsed, activeConnectionId, activeTable }: SqlViewProps) {
-  const [query, setQuery] = useState("SELECT * FROM ? LIMIT 10");
+  const defaultQuery = useMemo(() => {
+    if (activeConnectionId) {
+      if (activeTable) {
+        return `SELECT * FROM ${activeTable} LIMIT 10`;
+      }
+      return "SELECT * FROM sqlite_master WHERE type='table'";
+    }
+    return "SELECT * FROM ? LIMIT 10";
+  }, [activeConnectionId, activeTable]);
+
+  const [query, setQuery] = useState(defaultQuery);
+  const [prevDefaultQuery, setPrevDefaultQuery] = useState(defaultQuery);
   const [results, setResults] = useState<Record<string, unknown>[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [execTime, setExecTime] = useState<number | null>(null);
@@ -29,19 +40,14 @@ export function SqlView({ parsed, activeConnectionId, activeTable }: SqlViewProp
 
   // Sync default query when connection or selected table changes
   useEffect(() => {
-    if (activeConnectionId) {
-      if (activeTable) {
-        setQuery(`SELECT * FROM ${activeTable} LIMIT 10`);
-      } else {
-        setQuery("SELECT * FROM sqlite_master WHERE type='table'");
-      }
-    } else {
-      setQuery("SELECT * FROM ? LIMIT 10");
+    if (query === prevDefaultQuery) {
+      setQuery(defaultQuery);
     }
+    setPrevDefaultQuery(defaultQuery);
     setResults(null);
     setError(null);
     setExecTime(null);
-  }, [activeConnectionId, activeTable]);
+  }, [defaultQuery]);
 
   const rows = useMemo(() => {
     if (!parsed.data) return [];
@@ -124,7 +130,7 @@ export function SqlView({ parsed, activeConnectionId, activeTable }: SqlViewProp
           </button>
           <button
             className="btn btn-ghost"
-            onClick={() => setQuery("SELECT * FROM ? LIMIT 10")}
+            onClick={() => setQuery(defaultQuery)}
           >
             Reset
           </button>
