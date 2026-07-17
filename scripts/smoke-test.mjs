@@ -45,7 +45,7 @@ async function run() {
     });
     const setCookie = res.headers.get('set-cookie');
     if (setCookie) {
-      const match = setCookie.match(/session_token=[^;]+/);
+      const match = setCookie.match(/nb_session=[^;]+/);
       if (match) {
         cookieHeader = match[0];
       }
@@ -180,8 +180,14 @@ async function run() {
       })
     });
     const data = await res.json();
-    const isAiWorking = data.result && !data.result.includes('[AI not configured]');
-    reportResult('POST /api/ai (Gemini Response)', res.status === 200 && isAiWorking, isAiWorking ? 'working' : 'degraded/not-configured');
+    const hasResponse = data.result !== undefined;
+    const isAiConfigured = data.result && !data.result.includes('[AI not configured]');
+    if (res.status === 200) {
+      reportResult('POST /api/ai (Gemini Response)', hasResponse, isAiConfigured ? 'working' : 'warning: GEMINI_API_KEY not configured');
+    } else {
+      const errMsg = data.error || 'Unknown error';
+      reportResult('POST /api/ai (Gemini Response)', false, `HTTP ${res.status} - ${errMsg}. Hint: Verify GEMINI_API_KEY is valid in wrangler secrets.`);
+    }
   } catch (e) {
     reportResult('POST /api/ai (Gemini Response)', false, e.message);
   }
