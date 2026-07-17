@@ -12,7 +12,7 @@ export async function GET(req: Request) {
 
     const clientId = cfEnv.GOOGLE_CLIENT_ID;
     const origin = new URL(req.url).origin;
-    const redirectUri = cfEnv.GOOGLE_REDIRECT_URI ?? `${origin}/api/auth/callback`;
+    const redirectUri = `${origin}/api/auth/callback`;
 
     if (!clientId) {
       return Response.json(

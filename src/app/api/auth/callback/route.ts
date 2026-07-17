@@ -41,7 +41,7 @@ export async function GET(req: Request) {
 
     const clientId = cfEnv.GOOGLE_CLIENT_ID;
     const clientSecret = cfEnv.GOOGLE_CLIENT_SECRET;
-    const redirectUri = cfEnv.GOOGLE_REDIRECT_URI ?? `${origin}/api/auth/callback`;
+    const redirectUri = `${origin}/api/auth/callback`;
 
     if (!clientId || !clientSecret) {
       return Response.json({ error: "Google OAuth not configured" }, { status: 500 });
