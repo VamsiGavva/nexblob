@@ -69,6 +69,28 @@ export function AppShell({
   const [diffCompareContent, setDiffCompareContent] = useState("");
   const [diffShowDiff, setDiffShowDiff] = useState(false);
 
+  // SQL Query editor states, persisted across panel unmounts
+  const defaultSqlQuery = useMemo(() => {
+    if (activeConnectionId) {
+      if (activeTable) {
+        return `SELECT * FROM ${activeTable} LIMIT 10`;
+      }
+      return "SELECT * FROM sqlite_master WHERE type='table'";
+    }
+    return "SELECT * FROM ? LIMIT 10";
+  }, [activeConnectionId, activeTable]);
+
+  const [sqlQuery, setSqlQuery] = useState(defaultSqlQuery);
+  const [prevDefaultSqlQuery, setPrevDefaultSqlQuery] = useState(defaultSqlQuery);
+
+  // Sync default query when connection or selected table changes, preserving custom query modifications
+  useEffect(() => {
+    if (sqlQuery === prevDefaultSqlQuery) {
+      setSqlQuery(defaultSqlQuery);
+    }
+    setPrevDefaultSqlQuery(defaultSqlQuery);
+  }, [defaultSqlQuery]);
+
   // Reset diff state when active document changes
   useEffect(() => {
     setDiffCompareContent("");
@@ -200,6 +222,9 @@ export function AppShell({
                     parsed={parsed}
                     activeConnectionId={activeConnectionId}
                     activeTable={activeTable}
+                    query={sqlQuery}
+                    setQuery={setSqlQuery}
+                    defaultQuery={defaultSqlQuery}
                   />
                 )}
                 {view === "chart" && <ChartView parsed={parsed} />}

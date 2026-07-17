@@ -6,6 +6,9 @@ interface SqlViewProps {
   parsed: ParseResult;
   activeConnectionId: string | null;
   activeTable: string | null;
+  query: string;
+  setQuery: (q: string) => void;
+  defaultQuery: string;
 }
 
 // Lazy-load alasql ONLY on client — uses the browser-only shim to avoid react-native deps
@@ -20,34 +23,25 @@ async function getAlasql(): Promise<AlasqlFn> {
   return alasqlCache;
 }
 
-export function SqlView({ parsed, activeConnectionId, activeTable }: SqlViewProps) {
-  const defaultQuery = useMemo(() => {
-    if (activeConnectionId) {
-      if (activeTable) {
-        return `SELECT * FROM ${activeTable} LIMIT 10`;
-      }
-      return "SELECT * FROM sqlite_master WHERE type='table'";
-    }
-    return "SELECT * FROM ? LIMIT 10";
-  }, [activeConnectionId, activeTable]);
-
-  const [query, setQuery] = useState(defaultQuery);
-  const [prevDefaultQuery, setPrevDefaultQuery] = useState(defaultQuery);
+export function SqlView({
+  parsed,
+  activeConnectionId,
+  activeTable,
+  query,
+  setQuery,
+  defaultQuery,
+}: SqlViewProps) {
   const [results, setResults] = useState<Record<string, unknown>[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [execTime, setExecTime] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
 
-  // Sync default query when connection or selected table changes
+  // Clear query results and errors when database connection or table changes
   useEffect(() => {
-    if (query === prevDefaultQuery) {
-      setQuery(defaultQuery);
-    }
-    setPrevDefaultQuery(defaultQuery);
     setResults(null);
     setError(null);
     setExecTime(null);
-  }, [defaultQuery]);
+  }, [activeConnectionId, activeTable]);
 
   const rows = useMemo(() => {
     if (!parsed.data) return [];
