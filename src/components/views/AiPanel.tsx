@@ -65,7 +65,7 @@ export function AiPanel({ content, onClose }: AiPanelProps) {
             ✦ AI Assistant
           </h2>
           <p style={{ color: "var(--text-secondary)", fontSize: 11, marginTop: 2 }}>
-            Powered by Gemini 2.5 Flash
+            Powered by Gemini 3.5 Flash
           </p>
         </div>
         {onClose && (

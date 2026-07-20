@@ -107,13 +107,18 @@ Any SQL queries you write MUST target this SQLite table "${body.activeTable}" in
       ];
     }
 
-    // List of models to try in sequence in case of transient 503/429 errors
-    const models = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-1.5-flash"];
+    // List of models to try in sequence
+    const models = [
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-3.1-flash-lite-preview",
+      "gemini-3-flash-preview",
+    ];
     let response: Response | null = null;
     let lastError = "";
 
     for (const model of models) {
-      let retries = 2;
+      let retries = 1;
       while (retries >= 0) {
         try {
           const res = await fetch(
@@ -144,10 +149,16 @@ Any SQL queries you write MUST target this SQLite table "${body.activeTable}" in
           const errText = await res.text();
           lastError = `Model ${model} returned status ${res.status}: ${errText}`;
 
-          // If the error is a transient rate-limit or service overload, retry after a short delay
-          if ((res.status === 503 || res.status === 429) && retries > 0) {
+          // If the model is not found, not permitted, or quota is exhausted (limit 0),
+          // immediately move to the next model.
+          if (res.status === 404 || res.status === 403 || res.status === 429) {
+            break;
+          }
+
+          // If the error is a transient service overload (503), retry after a short delay
+          if (res.status === 503 && retries > 0) {
             retries--;
-            await new Promise((resolve) => setTimeout(resolve, 1000 * (3 - retries)));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
             continue;
           }
           break;
@@ -155,7 +166,7 @@ Any SQL queries you write MUST target this SQLite table "${body.activeTable}" in
           lastError = (e as Error).message;
           if (retries > 0) {
             retries--;
-            await new Promise((resolve) => setTimeout(resolve, 1000 * (3 - retries)));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
             continue;
           }
           break;
