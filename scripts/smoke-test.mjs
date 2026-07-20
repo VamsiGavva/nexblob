@@ -90,7 +90,9 @@ async function run() {
 
   // 5. GET /api/jsonBlob - List Recent Blobs
   try {
-    const res = await fetch(`${target}/api/jsonBlob`);
+    const res = await fetch(`${target}/api/jsonBlob`, {
+      headers: cookieHeader ? { 'Cookie': cookieHeader } : {}
+    });
     const data = await res.json();
     const found = data.blobs && data.blobs.some(b => b.id === testBlobId);
     reportResult('GET /api/jsonBlob (List Blobs)', res.status === 200 && found, `found created: ${found}`);
