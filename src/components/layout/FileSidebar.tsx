@@ -91,6 +91,7 @@ export function FileSidebar({
             <button
               key={blob.id}
               id={`blob-item-${blob.id}`}
+              data-id={blob.id}
               className={`blob-item ${isActive ? "active" : ""}`}
               onClick={() => {
                 onSelectConnection(null);

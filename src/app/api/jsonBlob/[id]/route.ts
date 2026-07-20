@@ -84,7 +84,7 @@ export async function PUT(req: Request, { params }: RouteContext) {
         )
         .bind(
           id,
-          null,
+          user.id,
           body.name ?? "Untitled",
           body.content ?? "{}",
           body.ai_chat_history ?? "[]",
@@ -93,6 +93,32 @@ export async function PUT(req: Request, { params }: RouteContext) {
           null
         )
         .run();
+    } else if (existing.workspace_id && existing.workspace_id !== user.id) {
+      // Fork / Clone shared blob into recipient user's own workspace
+      const newId = generateId();
+      await env.DB
+        .prepare(
+          `INSERT INTO blobs (id, workspace_id, name, content, ai_chat_history, created_at, updated_at, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          newId,
+          user.id,
+          body.name ?? existing.name,
+          body.content ?? existing.content,
+          body.ai_chat_history ?? "[]",
+          now,
+          now,
+          null
+        )
+        .run();
+
+      const newBlob = await env.DB
+        .prepare("SELECT * FROM blobs WHERE id = ?")
+        .bind(newId)
+        .first<Blob>();
+
+      return Response.json(newBlob);
     } else {
       if (body.content) {
         // Save version before update
@@ -111,10 +137,11 @@ export async function PUT(req: Request, { params }: RouteContext) {
              content = COALESCE(?, content),
              name = COALESCE(?, name),
              ai_chat_history = COALESCE(?, ai_chat_history),
+             workspace_id = COALESCE(workspace_id, ?),
              updated_at = ?
            WHERE id = ?`
         )
-        .bind(body.content ?? null, body.name ?? null, body.ai_chat_history ?? null, now, id)
+        .bind(body.content ?? null, body.name ?? null, body.ai_chat_history ?? null, user.id, now, id)
         .run();
     }
 

@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json() as {
+      id?: string;
       name?: string;
       content: string;
       expiry?: string;
@@ -35,9 +36,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "Invalid JSON content" }, { status: 400 });
     }
 
-    const id = generateId();
+    const id = body.id || generateId();
     const now = Date.now();
     const expires_at = expiryToTimestamp(body.expiry ?? "never");
+
+    const workspaceId = body.workspace_id ?? (user ? user.id : null);
 
     await env.DB
       .prepare(
@@ -46,7 +49,7 @@ export async function POST(req: Request) {
       )
       .bind(
         id,
-        body.workspace_id ?? null,
+        workspaceId,
         body.name ?? "Untitled",
         body.content,
         "[]",
@@ -71,26 +74,28 @@ export async function POST(req: Request) {
   }
 }
 
-// GET /api/jsonBlob — list all blobs (recent 50)
+// GET /api/jsonBlob — list blobs for session user
 export async function GET(req: Request) {
   try {
     const { env } = await getCloudflareContext({ async: true });
     const url = new URL(req.url);
-    const workspace_id = url.searchParams.get("workspace_id");
     const limit = Math.min(Number(url.searchParams.get("limit") ?? 50), 100);
 
+    const token = getSessionToken(req);
+    const user = token ? await getSessionUser((env as any).DB, token) : null;
+
     let result;
-    if (workspace_id) {
+    if (user) {
       result = await env.DB
         .prepare(
-          "SELECT id, name, created_at, updated_at, expires_at FROM blobs WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT ?"
+          "SELECT id, name, created_at, updated_at, expires_at FROM blobs WHERE workspace_id = ? OR workspace_id IS NULL ORDER BY updated_at DESC LIMIT ?"
         )
-        .bind(workspace_id, limit)
+        .bind(user.id, limit)
         .all<Blob>();
     } else {
       result = await env.DB
         .prepare(
-          "SELECT id, name, created_at, updated_at, expires_at FROM blobs ORDER BY updated_at DESC LIMIT ?"
+          "SELECT id, name, created_at, updated_at, expires_at FROM blobs WHERE workspace_id IS NULL ORDER BY updated_at DESC LIMIT ?"
         )
         .bind(limit)
         .all<Blob>();

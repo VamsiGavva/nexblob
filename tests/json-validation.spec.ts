@@ -401,4 +401,112 @@ test.describe("NexBlob E2E Flow", () => {
     const chatInput = page.locator("#ai-chat-input");
     await expect(chatInput).toBeVisible();
   });
+
+  test("should allow running a SQL query and saving query results as a new JSON Blob", async ({ page }) => {
+    await page.goto("/api/auth/dev-login?email=e2e@test.com&name=E2E+Tester");
+    await page.waitForLoadState("networkidle");
+
+    // Create and populate a clean sample data blob
+    await createAndPopulateBlob(page);
+
+    // Switch to SQL View tab
+    const sqlTab = page.locator("#view-pill-sql");
+    await expect(sqlTab).toBeVisible();
+    await sqlTab.click();
+
+    // Enter a SQL query
+    const sqlInput = page.locator("#sql-query-input");
+    await expect(sqlInput).toBeVisible();
+    await sqlInput.click();
+    await page.keyboard.press("Control+A");
+    await page.keyboard.press("Backspace");
+    await sqlInput.fill("SELECT customer, status FROM ? WHERE status = 'Shipped'");
+
+    // Run query
+    const runBtn = page.locator("#run-sql-btn");
+    await runBtn.click();
+
+    // Verify Save as JSON Blob button is displayed
+    const saveBlobBtn = page.locator("#save-query-as-blob-btn");
+    await expect(saveBlobBtn).toBeVisible({ timeout: 5000 });
+    await saveBlobBtn.click();
+
+    // Verify it switched back to editor view and populated content with query results
+    const editorTab = page.locator("#view-pill-editor");
+    await expect(editorTab).toHaveClass(/active/);
+
+    const editorContent = page.locator(".cm-content");
+    await expect(editorContent).toBeVisible();
+    const text = await editorContent.innerText();
+    expect(text).toContain("Alice Chen");
+    expect(text).toContain("Shipped");
+    expect(text).not.toContain("Bob Ramos");
+  });
+
+  test("should allow sharing a JSON blob and opening the shared URL to view full JSON content", async ({ page, context, browser }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/api/auth/dev-login?email=e2e@test.com&name=E2E+Tester");
+    await page.waitForLoadState("networkidle");
+
+    // Create and populate a clean sample data blob
+    await createAndPopulateBlob(page);
+
+    // Save the blob first
+    const saveBtn = page.locator("#save-blob-btn");
+    await expect(saveBtn).toBeVisible();
+    await saveBtn.click();
+
+    // Click Share button
+    const shareBtn = page.locator("#share-blob-btn");
+    await expect(shareBtn).toBeVisible();
+    await shareBtn.click();
+
+    // Retrieve active blob ID from sidebar to construct shared URL reliably
+    const activeItem = page.locator(".blob-item.active");
+    await expect(activeItem).toBeVisible();
+
+    // Construct shared URL
+    const baseUrl = page.url().split("?")[0];
+    const pageBlobId = await page.evaluate(() => {
+      const activeEl = document.querySelector(".blob-item.active");
+      return activeEl?.getAttribute("data-id") || "";
+    });
+
+    let copiedUrl = `${baseUrl}?shared=${pageBlobId}`;
+    if (!pageBlobId) {
+      copiedUrl = await page.evaluate(() => navigator.clipboard.readText());
+    }
+
+    // 1. Unauthenticated user (fresh browser context) opens shared URL -> should be prompted to sign in
+    const unauthContext = await browser.newContext();
+    const unauthPage = await unauthContext.newPage();
+    await unauthPage.goto(copiedUrl);
+    await unauthPage.waitForLoadState("networkidle");
+    const authModal = unauthPage.locator("#shared-auth-modal");
+    await expect(authModal).toBeVisible();
+    const loginLink = unauthPage.locator("#shared-login-btn");
+    await expect(loginLink).toBeVisible();
+
+    // 2. Authenticated recipient opens shared URL -> should load shared blob & recipient's workspace JSONs
+    await unauthPage.goto("/api/auth/dev-login?email=recipient@test.com&name=Recipient+User");
+    await unauthPage.waitForLoadState("networkidle");
+    await unauthPage.goto(copiedUrl);
+    await unauthPage.waitForLoadState("networkidle");
+
+    const newEditorContent = unauthPage.locator(".cm-content");
+    await expect(newEditorContent).toBeVisible();
+    const text = await newEditorContent.innerText();
+    expect(text).toContain("Alice Chen");
+    expect(text).toContain("Shipped");
+
+    // Sidebar contains the shared blob alongside recipient's saved workspace
+    const sidebarBlobItems = unauthPage.locator(".blob-item");
+    await expect(sidebarBlobItems.first()).toBeVisible();
+
+    // 3. Recipient saves the shared blob to their workspace
+    const recipientSaveBtn = unauthPage.locator("#save-blob-btn");
+    await expect(recipientSaveBtn).toBeVisible();
+    await recipientSaveBtn.click();
+    await expect(unauthPage.getByText("Saved! ✓")).toBeVisible();
+  });
 });

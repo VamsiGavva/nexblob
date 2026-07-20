@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { formatJSON } from "@/lib/json-utils";
 import type { ParseResult } from "@/lib/types";
 
@@ -162,6 +162,12 @@ interface DiffInputViewProps {
 }
 
 export function DiffInputView({ compareContent, onChange, onCompare, onClear }: DiffInputViewProps) {
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: "var(--surface)" }}>
       {/* Header */}
@@ -202,6 +208,7 @@ export function DiffInputView({ compareContent, onChange, onCompare, onClear }: 
           Paste Modified JSON (B):
         </div>
         <textarea
+          ref={inputRef}
           id="diff-compare-input"
           value={compareContent}
           onChange={(e) => onChange(e.target.value)}

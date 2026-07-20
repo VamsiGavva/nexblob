@@ -127,6 +127,11 @@ export function AiPageView({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   // Sync messages with saved chat history prop
   useEffect(() => {
@@ -328,6 +333,7 @@ export function AiPageView({
           style={{ display: "flex", gap: 10 }}
         >
           <textarea
+            ref={inputRef}
             id="ai-chat-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}

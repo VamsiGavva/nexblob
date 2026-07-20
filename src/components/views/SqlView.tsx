@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import type { ParseResult } from "@/lib/types";
 
 interface SqlViewProps {
@@ -9,6 +9,7 @@ interface SqlViewProps {
   query: string;
   setQuery: (q: string) => void;
   defaultQuery: string;
+  onCreateBlobWithContent?: (content: string, name?: string) => void;
 }
 
 // Lazy-load alasql ONLY on client — uses the browser-only shim to avoid react-native deps
@@ -30,11 +31,19 @@ export function SqlView({
   query,
   setQuery,
   defaultQuery,
+  onCreateBlobWithContent,
 }: SqlViewProps) {
   const [results, setResults] = useState<Record<string, unknown>[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [execTime, setExecTime] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   // Clear query results and errors when database connection or table changes
   useEffect(() => {
@@ -42,6 +51,21 @@ export function SqlView({
     setError(null);
     setExecTime(null);
   }, [activeConnectionId, activeTable]);
+
+  const handleCopyJson = async () => {
+    if (!results) return;
+    await navigator.clipboard.writeText(JSON.stringify(results, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCreateBlob = () => {
+    if (!results || !onCreateBlobWithContent) return;
+    const jsonString = JSON.stringify(results, null, 2);
+    const querySummary = query.replace(/\s+/g, " ").trim();
+    const name = querySummary.length > 25 ? `Query Result (${querySummary.slice(0, 22)}...)` : `Query Result (${querySummary})`;
+    onCreateBlobWithContent(jsonString, name);
+  };
 
   const rows = useMemo(() => {
     if (!parsed.data) return [];
@@ -104,6 +128,7 @@ export function SqlView({
           </span>
         </div>
         <textarea
+          ref={inputRef}
           id="sql-query-input"
           className="sql-editor"
           value={query}
@@ -112,7 +137,7 @@ export function SqlView({
           rows={4}
           aria-label="SQL query input"
         />
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
           <button
             id="run-sql-btn"
             className="btn btn-primary"
@@ -128,6 +153,28 @@ export function SqlView({
           >
             Reset
           </button>
+          {results && results.length > 0 && (
+            <>
+              <button
+                id="save-query-as-blob-btn"
+                className="btn btn-secondary"
+                onClick={handleCreateBlob}
+                aria-label="Create JSON Blob from Query Results"
+                title="Create a new JSON document from these query results"
+              >
+                ✦ Save as JSON Blob
+              </button>
+              <button
+                id="copy-query-json-btn"
+                className="btn btn-ghost"
+                onClick={handleCopyJson}
+                aria-label="Copy query results as JSON"
+                style={{ fontSize: 12 }}
+              >
+                {copied ? "Copied! ✓" : "Copy JSON"}
+              </button>
+            </>
+          )}
           {execTime !== null && (
             <span style={{ fontSize: 12, color: "var(--text-muted)", alignSelf: "center", marginLeft: "auto" }}>
               {results?.length ?? 0} rows · {execTime.toFixed(1)}ms

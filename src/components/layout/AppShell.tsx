@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { IconRail } from "./IconRail";
 import { FileSidebar } from "./FileSidebar";
 import { TopBar } from "./TopBar";
@@ -31,6 +31,7 @@ interface AppShellProps {
   onUpdateContent: (content: string) => void;
   onUpdateName: (name: string) => void;
   onNewBlob: () => void;
+  onCreateBlobWithContent?: (content: string, name?: string) => void;
   // D1 DB props
   connections: D1Connection[];
   activeConnectionId: string | null;
@@ -56,7 +57,7 @@ interface AppShellProps {
 
 export function AppShell({
   blobs, activeBlob, activeBlobId, view,
-  onSelectBlob, onChangeView, onUpdateContent, onUpdateName, onNewBlob,
+  onSelectBlob, onChangeView, onUpdateContent, onUpdateName, onNewBlob, onCreateBlobWithContent,
   connections, activeConnectionId, onSelectConnection, onAddConnection, onDeleteConnection,
   connectedTables, activeTable, onSelectTable, isDbLoading, dbError,
   onSave, saveStatus, onUpdateAiChat,
@@ -138,11 +139,21 @@ export function AppShell({
     return { added, removed };
   }, [leftLines, rightLines]);
 
+  const handleViewChange = useCallback((v: ViewMode) => {
+    if (typeof window !== "undefined") {
+      window.getSelection()?.removeAllRanges();
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    }
+    onChangeView(v);
+  }, [onChangeView]);
+
   return (
     <div className="app-shell">
       <IconRail
         activeView={view}
-        onChangeView={onChangeView}
+        onChangeView={handleViewChange}
       />
       <FileSidebar
         blobs={blobs}
@@ -165,7 +176,7 @@ export function AppShell({
         <TopBar
           blobName={activeBlob.name}
           view={view}
-          onChangeView={onChangeView}
+          onChangeView={handleViewChange}
           onUpdateName={onUpdateName}
           isValid={parsed.error === null}
           onSave={onSave}
@@ -225,6 +236,7 @@ export function AppShell({
                     query={sqlQuery}
                     setQuery={setSqlQuery}
                     defaultQuery={defaultSqlQuery}
+                    onCreateBlobWithContent={onCreateBlobWithContent}
                   />
                 )}
                 {view === "chart" && <ChartView parsed={parsed} />}
@@ -250,7 +262,7 @@ export function AppShell({
             </>
           )}
         </div>
-        <StatusBar parsed={parsed} onExplain={() => onChangeView("ai_page")} />
+        <StatusBar parsed={parsed} onExplain={() => handleViewChange("ai_page")} />
       </main>
     </div>
   );
