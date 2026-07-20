@@ -138,6 +138,7 @@ test.describe("NexBlob E2E Flow", () => {
   });
 
   test("should ask AI for a SQL query, extract it, switch to SQL view, and execute it", async ({ page }) => {
+    test.setTimeout(60000); // 60s timeout for AI response
     await page.goto("/api/auth/dev-login?email=e2e@test.com&name=E2E+Tester");
     await page.waitForLoadState("networkidle");
 

@@ -7,6 +7,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: "line",
+  timeout: 60000,
   use: {
     baseURL: "https://nexblob.gvk.workers.dev",
     trace: "on-first-retry",

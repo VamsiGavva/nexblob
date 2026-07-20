@@ -83,7 +83,11 @@ Any SQL queries you write MUST target this SQLite table "${body.activeTable}" in
     // Format contents for Gemini (either single-turn or multi-turn chat)
     let contents = [];
     if (body.messages && body.messages.length > 0) {
-      contents = body.messages.map((m, idx) => {
+      // Ensure the conversation starts with a user message (Gemini requirement)
+      const firstUserIdx = body.messages.findIndex((m) => m.role !== "model");
+      const activeMessages = firstUserIdx !== -1 ? body.messages.slice(firstUserIdx) : body.messages;
+
+      contents = activeMessages.map((m, idx) => {
         let text = m.content;
         if (idx === 0) {
           // Inject JSON context in the first message of the conversation
