@@ -25,6 +25,8 @@ interface TopBarProps {
   isValid: boolean;
   onChangeView: (v: ViewMode) => void;
   onUpdateName: (name: string) => void;
+  // Export prop
+  onExport?: (format: "json" | "csv" | "yaml" | "tsv") => void;
   // Save props
   onSave?: () => void;
   saveStatus?: "idle" | "saving" | "success" | "error";
@@ -38,13 +40,14 @@ interface TopBarProps {
 }
 
 export function TopBar({
-  blobName, view, isValid, onChangeView, onUpdateName,
+  blobName, view, isValid, onChangeView, onUpdateName, onExport,
   onSave, saveStatus = "idle", isReadOnly = false,
   onShare, shareStatus = "idle",
   user, onLogout
 }: TopBarProps) {
   const [editing, setEditing] = useState(false);
   const [nameValue, setNameValue] = useState(blobName);
+  const [exportOpen, setExportOpen] = useState(false);
 
   // Sync internal name state when active blob name changes
   useEffect(() => {
@@ -158,6 +161,75 @@ export function TopBar({
             ) : (
               /* Signed In -> Render Share, Save, and Profile */
               <>
+                {onExport && (
+                  <div style={{ position: "relative" }}>
+                    <button
+                      id="export-blob-btn"
+                      className="btn btn-ghost"
+                      onClick={() => setExportOpen((prev) => !prev)}
+                      style={{
+                        fontSize: 12,
+                        padding: "6px 12px",
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6
+                      }}
+                    >
+                      <span>📥</span>
+                      Export
+                    </button>
+
+                    {exportOpen && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          right: 0,
+                          marginTop: 6,
+                          background: "var(--surface)",
+                          border: "1px solid var(--border-strong)",
+                          borderRadius: "var(--radius)",
+                          boxShadow: "var(--shadow-md)",
+                          padding: "4px 0",
+                          zIndex: 1000,
+                          minWidth: 120
+                        }}
+                      >
+                        {(["json", "csv", "yaml", "tsv"] as const).map((fmt) => (
+                          <button
+                            key={fmt}
+                            id={`export-opt-${fmt}`}
+                            onClick={() => {
+                              onExport(fmt);
+                              setExportOpen(false);
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "6px 12px",
+                              textAlign: "left",
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              fontSize: 12,
+                              fontWeight: 500,
+                              color: "var(--text-primary)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between"
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-sunken)")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          >
+                            <span>.{fmt.toUpperCase()}</span>
+                            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Save</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {onShare && (
                   <button
                     id="share-blob-btn"

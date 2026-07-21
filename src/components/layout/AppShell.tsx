@@ -11,7 +11,7 @@ import { ChartView } from "@/components/views/ChartView";
 import { DiffSidePanel, DiffInputView, alignDiffs } from "@/components/views/DiffView";
 import { AiPageView } from "@/components/views/AiPageView";
 import dynamic from "next/dynamic";
-import { parseJSON, formatJSON } from "@/lib/json-utils";
+import { parseJSON, formatJSON, exportBlobFile } from "@/lib/json-utils";
 import type { Blob, ViewMode, D1Connection } from "@/lib/types";
 import type { User } from "@/hooks/useUser";
 
@@ -150,6 +150,47 @@ export function AppShell({
     onChangeView(v);
   }, [onChangeView]);
 
+  const handleExport = useCallback((format: "json" | "csv" | "yaml" | "tsv") => {
+    exportBlobFile(activeBlob.content, activeBlob.name, format);
+  }, [activeBlob.content, activeBlob.name]);
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = typeof window !== "undefined" && navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+      // Cmd + Shift + F / Ctrl + Shift + F: Auto-format JSON content
+      if (modifier && e.shiftKey && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        if (parsed.data) {
+          onUpdateContent(formatJSON(parsed.data));
+        }
+        return;
+      }
+
+      // Cmd + S / Ctrl + S: Manual save
+      if (modifier && !e.shiftKey && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        onSave();
+        return;
+      }
+
+      // Cmd + K / Ctrl + K: Focus search bar
+      if (modifier && !e.shiftKey && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        const searchInput = document.getElementById("sidebar-search");
+        if (searchInput) {
+          searchInput.focus();
+        }
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onSave, onUpdateContent, parsed.data]);
+
   return (
     <div className="app-shell">
       <IconRail
@@ -181,6 +222,7 @@ export function AppShell({
           onChangeView={handleViewChange}
           onUpdateName={onUpdateName}
           isValid={parsed.error === null}
+          onExport={handleExport}
           onSave={onSave}
           saveStatus={saveStatus}
           isReadOnly={activeTable !== null}

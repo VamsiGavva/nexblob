@@ -564,4 +564,78 @@ test.describe("NexBlob E2E Flow", () => {
     // 7. Verify the blob item is removed from the sidebar
     await expect(sidebarItem).not.toBeVisible();
   });
+
+  test("should support exporting active blob into JSON, CSV, YAML, and TSV formats", async ({ page }) => {
+    await page.goto("/api/auth/dev-login?email=e2e@test.com&name=E2E+Tester");
+    await page.waitForLoadState("networkidle");
+
+    await createAndPopulateBlob(page);
+
+    // Click Export dropdown
+    const exportBtn = page.locator("#export-blob-btn");
+    await expect(exportBtn).toBeVisible();
+    await exportBtn.click();
+
+    // Verify format options are displayed
+    await expect(page.locator("#export-opt-json")).toBeVisible();
+    await expect(page.locator("#export-opt-csv")).toBeVisible();
+    await expect(page.locator("#export-opt-yaml")).toBeVisible();
+    await expect(page.locator("#export-opt-tsv")).toBeVisible();
+
+    // Test JSON export download
+    const downloadPromise = page.waitForEvent("download");
+    await page.locator("#export-opt-json").click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toContain(".json");
+  });
+
+  test("should support global keyboard shortcuts for search, save, and formatting", async ({ page }) => {
+    await page.goto("/api/auth/dev-login?email=e2e@test.com&name=E2E+Tester");
+    await page.waitForLoadState("networkidle");
+
+    // 1. Test Ctrl+K / Cmd+K to focus search input
+    await page.keyboard.press("Control+K");
+    const searchInput = page.locator("#sidebar-search");
+    await expect(searchInput).toBeFocused();
+
+    // 2. Populate editor with unformatted valid JSON
+    const editor = page.locator(".cm-content");
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await page.keyboard.press("Control+A");
+    await page.keyboard.press("Backspace");
+    await editor.fill('{"a":1,"b":2}');
+
+    // 3. Test Ctrl+Shift+F / Cmd+Shift+F to auto-format
+    await page.keyboard.press("Control+Shift+F");
+    const text = await editor.innerText();
+    expect(text).toContain('\n  "a": 1');
+
+    // 4. Test Ctrl+S / Cmd+S to trigger save
+    await page.keyboard.press("Control+S");
+    await expect(page.locator("text=Saved! ✓")).toBeVisible();
+  });
+
+  test("should allow importing JSON files using file input", async ({ page }) => {
+    await page.goto("/api/auth/dev-login?email=e2e@test.com&name=E2E+Tester");
+    await page.waitForLoadState("networkidle");
+
+    // Click Import File button
+    const importBtn = page.locator("#import-file-btn");
+    await expect(importBtn).toBeVisible();
+
+    // Upload sample file buffer
+    const fileInput = page.locator("#import-file-input");
+    await fileInput.setInputFiles({
+      name: "uploaded_data.json",
+      mimeType: "application/json",
+      buffer: Buffer.from('{"imported_key": "success_import_value"}')
+    });
+
+    // Verify editor is populated with imported file content
+    const editorContent = page.locator(".cm-content");
+    await expect(editorContent).toBeVisible();
+    const text = await editorContent.innerText();
+    expect(text).toContain("success_import_value");
+  });
 });

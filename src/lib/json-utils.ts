@@ -81,3 +81,108 @@ export function expiryToTimestamp(option: string): number | null {
       return null;
   }
 }
+
+export function jsonToCsv(data: unknown, delimiter: "," | "\t" = ","): string {
+  if (!data) return "";
+  let rows: Record<string, unknown>[] = [];
+
+  if (Array.isArray(data)) {
+    rows = data.map((item) => (typeof item === "object" && item !== null ? (item as Record<string, unknown>) : { value: item }));
+  } else if (typeof data === "object" && data !== null) {
+    rows = [data as Record<string, unknown>];
+  } else {
+    rows = [{ value: data }];
+  }
+
+  if (rows.length === 0) return "";
+
+  const headers = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
+  const escapeCell = (val: unknown): string => {
+    if (val === null || val === undefined) return "";
+    const str = typeof val === "object" ? JSON.stringify(val) : String(val);
+    if (str.includes(delimiter) || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const headerLine = headers.map(escapeCell).join(delimiter);
+  const rowLines = rows.map((r) => headers.map((h) => escapeCell(r[h])).join(delimiter));
+
+  return [headerLine, ...rowLines].join("\n");
+}
+
+export function jsonToYaml(data: unknown, indentLevel = 0): string {
+  const pad = "  ".repeat(indentLevel);
+
+  if (data === null || data === undefined) return "null";
+  if (typeof data === "boolean" || typeof data === "number") return String(data);
+  if (typeof data === "string") {
+    if (data.includes("\n") || data.includes(":") || data.includes("#")) {
+      return JSON.stringify(data);
+    }
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    if (data.length === 0) return "[]";
+    return data
+      .map((item) => {
+        if (typeof item === "object" && item !== null) {
+          const itemYaml = jsonToYaml(item, indentLevel + 1).trimStart();
+          return `${pad}- ${itemYaml}`;
+        }
+        return `${pad}- ${jsonToYaml(item, indentLevel + 1)}`;
+      })
+      .join("\n");
+  }
+
+  if (typeof data === "object") {
+    const keys = Object.keys(data as object);
+    if (keys.length === 0) return "{}";
+    return keys
+      .map((key) => {
+        const val = (data as Record<string, unknown>)[key];
+        if (typeof val === "object" && val !== null) {
+          return `${pad}${key}:\n${jsonToYaml(val, indentLevel + 1)}`;
+        }
+        return `${pad}${key}: ${jsonToYaml(val, indentLevel + 1)}`;
+      })
+      .join("\n");
+  }
+
+  return String(data);
+}
+
+export function exportBlobFile(content: string, name: string, format: "json" | "csv" | "yaml" | "tsv") {
+  let output = content;
+  let mimeType = "application/json";
+  let ext = "json";
+
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(content);
+  } catch {}
+
+  if (format === "csv") {
+    output = parsed ? jsonToCsv(parsed, ",") : content;
+    mimeType = "text/csv";
+    ext = "csv";
+  } else if (format === "tsv") {
+    output = parsed ? jsonToCsv(parsed, "\t") : content;
+    mimeType = "text/tab-separated-values";
+    ext = "tsv";
+  } else if (format === "yaml") {
+    output = parsed ? jsonToYaml(parsed) : content;
+    mimeType = "text/yaml";
+    ext = "yaml";
+  }
+
+  const safeName = (name || "blob").toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+  const blob = new window.Blob([output], { type: `${mimeType};charset=utf-8` });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${safeName}.${ext}`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}

@@ -19,6 +19,8 @@ interface EditorViewProps {
 export function EditorView({ content, onChange, parsed, isReadOnly = false }: EditorViewProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const cmView = useRef<CMEditorView | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleFormat = useCallback(() => {
     if (parsed.data) {
@@ -32,6 +34,27 @@ export function EditorView({ content, onChange, parsed, isReadOnly = false }: Ed
       alert("Cannot format: Invalid JSON structure (" + parsed.error + ")");
     }
   }, [parsed.data, parsed.error, onChange]);
+
+  const handleFileUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (text !== undefined) {
+        onChange(text);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (isReadOnly) return;
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileUpload(file);
+    }
+  };
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -91,15 +114,68 @@ export function EditorView({ content, onChange, parsed, isReadOnly = false }: Ed
   }, [content]);
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", height: "100%" }}>
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        if (!isReadOnly) setIsDragging(true);
+      }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={handleDrop}
+      style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", height: "100%", position: "relative" }}
+    >
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept=".json,.txt,.csv,.yaml,.yml"
+        style={{ display: "none" }}
+        id="import-file-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFileUpload(file);
+          e.target.value = "";
+        }}
+      />
+
+      {isDragging && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(108, 92, 231, 0.15)",
+            border: "2px dashed var(--accent)",
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+            backdropFilter: "blur(2px)"
+          }}
+        >
+          <div style={{ background: "var(--surface)", padding: "12px 24px", borderRadius: 12, fontWeight: 600, color: "var(--accent-ink)", boxShadow: "var(--shadow-md)" }}>
+            📂 Drop JSON file to import into editor
+          </div>
+        </div>
+      )}
+
       <div style={{
         display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
         borderBottom: "1px solid var(--border)", background: "var(--surface-sunken)", flexShrink: 0,
       }}>
         <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Raw editor</span>
-        <button id="format-btn" className="btn btn-ghost" style={{ fontSize: 12, padding: "3px 8px", marginLeft: "auto" }} onClick={handleFormat}>
-          Format
-        </button>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          <button
+            id="import-file-btn"
+            className="btn btn-ghost"
+            style={{ fontSize: 12, padding: "3px 8px" }}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isReadOnly}
+          >
+            Import File
+          </button>
+          <button id="format-btn" className="btn btn-ghost" style={{ fontSize: 12, padding: "3px 8px" }} onClick={handleFormat}>
+            Format
+          </button>
+        </div>
       </div>
       <div ref={editorRef} style={{ flex: 1, overflow: "hidden" }} />
     </div>
