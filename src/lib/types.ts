@@ -27,7 +27,7 @@ export interface Version {
   created_at: number;
 }
 
-export type ViewMode = "editor" | "table" | "raw" | "sql" | "chart" | "diff" | "ai_page";
+export type ViewMode = "editor" | "table" | "raw" | "sql" | "chart" | "diff" | "ai_page" | "postman";
 
 export interface BlobMeta {
   id: string;

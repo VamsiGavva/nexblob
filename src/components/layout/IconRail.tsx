@@ -27,46 +27,55 @@ export function IconRail({
   };
 
   const navItems: { id: ViewMode; label: string; icon: string }[] = [
-    { id: "editor", label: "Editor", icon: "✦" },
-    { id: "table", label: "Table View", icon: "⊞" },
-    { id: "raw", label: "Raw JSON", icon: "{}" },
-    { id: "sql", label: "SQL Query", icon: "▷" },
-    { id: "chart", label: "Charts", icon: "◉" },
-    { id: "diff", label: "JSON Diff", icon: "⇄" },
-    { id: "ai_page", label: "AI Specialist", icon: "◈" },
+    { id: "editor", label: "Blob", icon: "{}" },
+    { id: "diff", label: "Diff Check", icon: "⇄" },
+    { id: "postman", label: "Postman", icon: "🚀" },
   ];
 
   return (
     <nav className="icon-rail" role="navigation" aria-label="Main navigation">
       {/* Logo */}
       <div style={{ marginBottom: 20 }}>
-        <button
-          className="rail-btn"
+        <div
           aria-label="NexBlob Logo"
           style={{
-            color: "var(--accent)", fontSize: 20, fontWeight: 800,
-            textShadow: "0 0 10px rgba(108, 92, 231, 0.4)",
-            background: "var(--accent-bg)", borderRadius: "10px"
+            width: 36,
+            height: 36,
+            borderRadius: "10px",
+            overflow: "hidden",
+            boxShadow: "0 0 12px rgba(108, 92, 231, 0.5)",
+            border: "1px solid rgba(108, 92, 231, 0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#0d0f17",
+            cursor: "pointer"
           }}
         >
-          N
-        </button>
+          <img
+            src="/logo.png"
+            alt="NexBlob"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        </div>
       </div>
 
       {/* Navigation Buttons */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", alignItems: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", alignItems: "center" }}>
         {navItems.map((item) => {
-          const isActive = activeView === item.id;
+          const isBlobGroup = activeView !== "diff" && activeView !== "postman";
+          const isActive = item.id === "editor" ? isBlobGroup : activeView === item.id;
           return (
             <button
               key={item.id}
               id={`rail-${item.id}`}
               className={`rail-btn ${isActive ? "active" : ""}`}
               aria-label={item.label}
+              title={item.label}
               onClick={() => onChangeView(item.id)}
               style={{
-                fontSize: item.id === "raw" ? 11 : 16,
-                fontFamily: item.id === "raw" ? "var(--font-mono)" : undefined,
+                fontSize: item.id === "editor" ? 13 : 16,
+                fontFamily: item.id === "editor" ? "var(--font-mono)" : undefined,
                 position: "relative"
               }}
             >

@@ -64,6 +64,7 @@ export function FileSidebar({
     <aside className="file-sidebar" aria-label="File sidebar">
       <div className="sidebar-header">
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <img src="/logo.png" alt="NexBlob" style={{ width: 20, height: 20, borderRadius: 4 }} />
           <span style={{ fontFamily: "var(--font-heading)", fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
             My workspace
           </span>

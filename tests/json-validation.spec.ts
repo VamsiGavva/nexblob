@@ -234,7 +234,7 @@ test.describe("NexBlob E2E Flow", () => {
     await createAndPopulateBlob(page);
 
     // Switch to the Diff view tab
-    const diffTab = page.locator("#view-pill-diff");
+    const diffTab = page.locator("#rail-diff");
     await expect(diffTab).toBeVisible();
     await diffTab.click();
 
@@ -637,5 +637,27 @@ test.describe("NexBlob E2E Flow", () => {
     await expect(editorContent).toBeVisible();
     const text = await editorContent.innerText();
     expect(text).toContain("success_import_value");
+  });
+
+  test("should allow navigating to Postman tab, configuring HTTP request, and inspecting UI", async ({ page }) => {
+    await page.goto("/api/auth/dev-login?email=e2e@test.com&name=E2E+Tester");
+    await page.waitForLoadState("networkidle");
+
+    // Click Postman rail button
+    const postmanRailBtn = page.locator("#rail-postman");
+    await expect(postmanRailBtn).toBeVisible();
+    await postmanRailBtn.click();
+
+    // Verify Postman components are visible
+    await expect(page.locator("#postman-url-input")).toBeVisible();
+    await expect(page.locator("#postman-send-btn")).toBeVisible();
+    await expect(page.locator("#postman-method-select")).toBeVisible();
+
+    // Verify syncing active blob into body works
+    const syncBtn = page.locator("#postman-sync-blob-btn");
+    await expect(syncBtn).toBeVisible();
+    await syncBtn.click();
+    const reqBody = page.locator("#postman-req-body");
+    await expect(reqBody).not.toHaveValue("");
   });
 });

@@ -10,6 +10,7 @@ import { RawView } from "@/components/views/RawView";
 import { ChartView } from "@/components/views/ChartView";
 import { DiffSidePanel, DiffInputView, alignDiffs } from "@/components/views/DiffView";
 import { AiPageView } from "@/components/views/AiPageView";
+import { PostmanView } from "@/components/views/PostmanView";
 import dynamic from "next/dynamic";
 import { parseJSON, formatJSON, exportBlobFile } from "@/lib/json-utils";
 import type { Blob, ViewMode, D1Connection } from "@/lib/types";
@@ -232,8 +233,12 @@ export function AppShell({
           onLogout={onLogout}
         />
         <div className="content-area" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
-          {/* Render Diff view when showDiff is true */}
-          {view === "diff" && diffShowDiff ? (
+          {view === "postman" ? (
+            <PostmanView
+              activeBlobContent={activeBlob.content}
+              onCreateBlobWithContent={onCreateBlobWithContent}
+            />
+          ) : view === "diff" && diffShowDiff ? (
             <>
               {/* Left Pane: JSON A with red highlights */}
               <div style={{ flex: 1, minWidth: 0, height: "100%", borderRight: "1px solid var(--border)", overflow: "hidden", display: "flex", flexDirection: "column" }}>

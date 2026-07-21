@@ -109,20 +109,26 @@ export function TopBar({
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <nav className="view-pills" aria-label="View switcher" role="tablist">
-          {VIEWS.map(({ id, label }) => (
-            <button
-              key={id}
-              id={`view-pill-${id}`}
-              role="tab"
-              aria-selected={view === id}
-              className={`view-pill ${view === id ? "active" : ""}`}
-              onClick={() => onChangeView(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
+        {view === "diff" || view === "postman" ? (
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent-ink)", display: "flex", alignItems: "center", gap: 6 }}>
+            <span>{view === "diff" ? "🔀 Diff Check" : "🚀 Postman API Client"}</span>
+          </div>
+        ) : (
+          <nav className="view-pills" aria-label="View switcher" role="tablist">
+            {VIEWS.filter(v => v.id !== "diff" && v.id !== "postman").map(({ id, label }) => (
+              <button
+                key={id}
+                id={`view-pill-${id}`}
+                role="tab"
+                aria-selected={view === id}
+                className={`view-pill ${view === id ? "active" : ""}`}
+                onClick={() => onChangeView(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        )}
 
         {/* Auth-conditional topbar options */}
         {!isReadOnly && (
