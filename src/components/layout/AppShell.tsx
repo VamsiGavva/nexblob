@@ -31,6 +31,7 @@ interface AppShellProps {
   onUpdateContent: (content: string) => void;
   onUpdateName: (name: string) => void;
   onNewBlob: () => void;
+  onDeleteBlob?: (id: string) => void;
   onCreateBlobWithContent?: (content: string, name?: string) => void;
   // D1 DB props
   connections: D1Connection[];
@@ -57,7 +58,7 @@ interface AppShellProps {
 
 export function AppShell({
   blobs, activeBlob, activeBlobId, view,
-  onSelectBlob, onChangeView, onUpdateContent, onUpdateName, onNewBlob, onCreateBlobWithContent,
+  onSelectBlob, onChangeView, onUpdateContent, onUpdateName, onNewBlob, onDeleteBlob, onCreateBlobWithContent,
   connections, activeConnectionId, onSelectConnection, onAddConnection, onDeleteConnection,
   connectedTables, activeTable, onSelectTable, isDbLoading, dbError,
   onSave, saveStatus, onUpdateAiChat,
@@ -160,6 +161,7 @@ export function AppShell({
         activeBlobId={activeBlobId}
         onSelectBlob={onSelectBlob}
         onNewBlob={onNewBlob}
+        onDeleteBlob={onDeleteBlob}
         // D1 Props
         connections={connections}
         activeConnectionId={activeConnectionId}

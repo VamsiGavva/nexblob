@@ -509,4 +509,59 @@ test.describe("NexBlob E2E Flow", () => {
     await recipientSaveBtn.click();
     await expect(unauthPage.getByText("Saved! ✓")).toBeVisible();
   });
+
+  test("should handle creating, saving, and deleting a blob from the workspace", async ({ page }) => {
+    await page.goto("/api/auth/dev-login?email=e2e@test.com&name=E2E+Tester");
+    await page.waitForLoadState("networkidle");
+
+    // Wait for sidebar to load
+    await expect(page.locator(".blob-item").first()).toBeVisible();
+
+    // 1. Click "+ New blob"
+    await page.locator("#new-blob-btn").click();
+
+    // 2. Clear editor and fill with unique JSON content
+    const editor = page.locator(".cm-content");
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await page.keyboard.press("Control+A");
+    await page.keyboard.press("Backspace");
+    const uniqueVal = `delete_me_${Math.floor(Math.random() * 1000000)}`;
+    await editor.fill(`{"delete_test": "${uniqueVal}"}`);
+
+    // 3. Rename the blob
+    const nameDisplay = page.locator("#blob-name-display");
+    await expect(nameDisplay).toBeVisible();
+    await nameDisplay.click();
+    const nameInput = page.locator("#blob-name-input");
+    await expect(nameInput).toBeVisible();
+    const blobName = `Blob To Delete ${uniqueVal}`;
+    await nameInput.fill(blobName);
+    await page.keyboard.press("Enter");
+
+    // 4. Save the blob
+    const saveBtn = page.locator("#save-blob-btn");
+    await expect(saveBtn).toBeVisible();
+    await saveBtn.click();
+    await expect(page.locator("text=Saved! ✓")).toBeVisible();
+
+    // 5. Verify the blob appears in the sidebar list
+    const sidebarItem = page.locator(".file-sidebar").locator(`text=${blobName}`);
+    await expect(sidebarItem).toBeVisible();
+
+    // 6. Delete the blob (accepting the confirmation dialog)
+    page.on("dialog", async (dialog) => {
+      expect(dialog.message()).toContain(`delete "${blobName}"`);
+      await dialog.accept();
+    });
+
+    const blobContainer = page.locator(".blob-item", { hasText: blobName });
+    await blobContainer.hover();
+    const deleteBtn = blobContainer.locator(".blob-delete-btn");
+    await expect(deleteBtn).toBeVisible();
+    await deleteBtn.click();
+
+    // 7. Verify the blob item is removed from the sidebar
+    await expect(sidebarItem).not.toBeVisible();
+  });
 });

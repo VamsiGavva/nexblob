@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: "line",
   timeout: 60000,
   use: {
-    baseURL: "https://nexblob.gvk.workers.dev",
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || "https://nexblob.gvk.workers.dev",
     trace: "on-first-retry",
   },
   projects: [

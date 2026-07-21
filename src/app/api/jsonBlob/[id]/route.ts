@@ -159,20 +159,29 @@ export async function PUT(req: Request, { params }: RouteContext) {
 
 
 // DELETE /api/jsonBlob/:id
-export async function DELETE(_req: Request, { params }: RouteContext) {
+export async function DELETE(req: Request, { params }: RouteContext) {
   try {
     const { env } = await getCloudflareContext({ async: true });
     const { id } = await params;
 
     const existing = await env.DB
-      .prepare("SELECT id FROM blobs WHERE id = ?")
+      .prepare("SELECT * FROM blobs WHERE id = ?")
       .bind(id)
-      .first();
+      .first<Blob>();
 
     if (!existing) {
       return Response.json({ error: "Blob not found" }, { status: 404 });
     }
 
+    const token = getSessionToken(req);
+    const user = token ? await getSessionUser((env as any).DB, token) : null;
+
+    if (existing.workspace_id && (!user || existing.workspace_id !== user.id)) {
+      return Response.json({ error: "Unauthorized to delete this blob" }, { status: 403 });
+    }
+
+    await env.DB.prepare("DELETE FROM versions WHERE blob_id = ?").bind(id).run();
+    await env.DB.prepare("DELETE FROM comments WHERE blob_id = ?").bind(id).run();
     await env.DB.prepare("DELETE FROM blobs WHERE id = ?").bind(id).run();
 
     return new Response(null, { status: 204 });

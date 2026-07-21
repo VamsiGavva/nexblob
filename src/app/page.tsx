@@ -132,6 +132,38 @@ export default function Home() {
     }
   }, [activeConnectionId, fetchConnections]);
 
+  const handleDeleteBlob = useCallback(async (id: string) => {
+    try {
+      await fetch(`/api/jsonBlob/${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.error("Failed to delete blob:", err);
+    }
+
+    setBlobs((prev) => {
+      const nextBlobs = prev.filter((b) => b.id !== id);
+      if (activeBlobId === id) {
+        if (nextBlobs.length > 0) {
+          setActiveBlobId(nextBlobs[0].id);
+        } else {
+          const newId = crypto.randomUUID().replace(/-/g, "").slice(0, 21);
+          const newBlob: Blob = {
+            id: newId,
+            workspace_id: null,
+            name: "Untitled",
+            content: "{}",
+            created_at: Date.now(),
+            updated_at: Date.now(),
+            expires_at: null,
+            ai_chat_history: "[]"
+          };
+          setActiveBlobId(newId);
+          return [newBlob];
+        }
+      }
+      return nextBlobs;
+    });
+  }, [activeBlobId]);
+
   // Attempt to fetch real D1 blobs on load
   const loadDatabaseData = useCallback(async () => {
     const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
@@ -521,6 +553,7 @@ export default function Home() {
         onUpdateContent={updateContent}
         onUpdateName={updateName}
         onNewBlob={createNewBlob}
+        onDeleteBlob={handleDeleteBlob}
         onCreateBlobWithContent={createBlobWithContent}
         // D1 connection props
         connections={connections}

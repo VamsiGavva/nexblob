@@ -271,6 +271,29 @@ body {
 .blob-item:hover .blob-name {
   color: var(--text-primary);
 }
+.blob-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.blob-item:hover .blob-delete-btn,
+.blob-item:focus-within .blob-delete-btn {
+  opacity: 1;
+}
+.blob-delete-btn:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
 
 .new-blob-btn {
   display: flex;
