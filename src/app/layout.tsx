@@ -6,10 +6,16 @@ export const metadata: Metadata = {
   description:
     "Store, explore, query, and share JSON data five ways: tree, raw, table, SQL, and charts. The professional upgrade to jsonblob.com with AI, collaboration, and Cloudflare-edge speed.",
   keywords: ["JSON", "JSON storage", "JSON explorer", "JSON workbench", "JSON editor", "NexBlob"],
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
   openGraph: {
     title: "NexBlob",
     description: "The same JSON, explorable five different ways.",
     type: "website",
+    images: ["/logo.png"],
   },
 };
 
