@@ -193,45 +193,49 @@ export function AppShell({
   }, [onSave, onUpdateContent, parsed.data]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={(view === "postman" || view === "diff") ? { gridTemplateColumns: "var(--rail-w) 1fr" } : undefined}>
       <IconRail
         activeView={view}
         onChangeView={handleViewChange}
       />
-      <FileSidebar
-        blobs={blobs}
-        activeBlobId={activeBlobId}
-        onSelectBlob={onSelectBlob}
-        onNewBlob={onNewBlob}
-        onDeleteBlob={onDeleteBlob}
-        // D1 Props
-        connections={connections}
-        activeConnectionId={activeConnectionId}
-        onSelectConnection={onSelectConnection}
-        onAddConnection={onAddConnection}
-        onDeleteConnection={onDeleteConnection}
-        connectedTables={connectedTables}
-        activeTable={activeTable}
-        onSelectTable={onSelectTable}
-        isDbLoading={isDbLoading}
-        dbError={dbError}
-      />
-      <main className="main-area">
-        <TopBar
-          blobName={activeBlob.name}
-          view={view}
-          onChangeView={handleViewChange}
-          onUpdateName={onUpdateName}
-          isValid={parsed.error === null}
-          onExport={handleExport}
-          onSave={onSave}
-          saveStatus={saveStatus}
-          isReadOnly={activeTable !== null}
-          onShare={onShare}
-          shareStatus={shareStatus}
-          user={user}
-          onLogout={onLogout}
+      {view !== "postman" && view !== "diff" && (
+        <FileSidebar
+          blobs={blobs}
+          activeBlobId={activeBlobId}
+          onSelectBlob={onSelectBlob}
+          onNewBlob={onNewBlob}
+          onDeleteBlob={onDeleteBlob}
+          // D1 Props
+          connections={connections}
+          activeConnectionId={activeConnectionId}
+          onSelectConnection={onSelectConnection}
+          onAddConnection={onAddConnection}
+          onDeleteConnection={onDeleteConnection}
+          connectedTables={connectedTables}
+          activeTable={activeTable}
+          onSelectTable={onSelectTable}
+          isDbLoading={isDbLoading}
+          dbError={dbError}
         />
+      )}
+      <main className="main-area">
+        {view !== "postman" && (
+          <TopBar
+            blobName={activeBlob.name}
+            view={view}
+            onChangeView={handleViewChange}
+            onUpdateName={onUpdateName}
+            isValid={parsed.error === null}
+            onExport={handleExport}
+            onSave={onSave}
+            saveStatus={saveStatus}
+            isReadOnly={activeTable !== null}
+            onShare={onShare}
+            shareStatus={shareStatus}
+            user={user}
+            onLogout={onLogout}
+          />
+        )}
         <div className="content-area" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
           {view === "postman" ? (
             <PostmanView
@@ -311,7 +315,9 @@ export function AppShell({
             </>
           )}
         </div>
-        <StatusBar parsed={parsed} onExplain={() => handleViewChange("ai_page")} />
+        {view !== "postman" && (
+          <StatusBar parsed={parsed} onExplain={() => handleViewChange("ai_page")} />
+        )}
       </main>
     </div>
   );

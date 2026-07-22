@@ -34,6 +34,11 @@ Analyze the provided JSON document and write queries, aggregations, or code (suc
 - Provide clean, optimized, and ready-to-run queries/code blocks.
 - Keep explanations clear and concise.
 - Refer to the keys and structure of the JSON document accurately.`,
+
+  troubleshoot: `You are an expert HTTP API troubleshooter.
+Analyze the provided API Request details (URL, Method, Headers, Body) and the HTTP Response (Status Code, Headers, Response Body).
+Give a precise, highly actionable diagnosis explaining why the request failed (e.g. wrong authentication format, missing headers, incorrect body format, syntax errors).
+Provide a clear, step-by-step resolution on how the user can update their request parameters (headers, body, query params, etc.) in their API client to obtain a successful HTTP 200 OK.`,
 };
 
 export async function POST(req: Request) {
@@ -111,9 +116,11 @@ Any SQL queries you write MUST target this SQLite table "${body.activeTable}" in
       ];
     }
 
-    // List of models to try in sequence
+    // List of models to try in sequence — newest GA models first
     const models = [
-      "gemini-3.5-flash",
+      "gemini-3.6-flash",          // GA — fastest, most capable
+      "gemini-3.5-flash-lite",     // GA — ultra-low latency
+      "gemini-3.5-flash",          // stable fallback
       "gemini-3.1-flash-lite",
       "gemini-3.1-flash-lite-preview",
       "gemini-3-flash-preview"
